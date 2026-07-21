@@ -7,6 +7,7 @@ import { BreadcrumbsComponent } from '@pages/components/breadcrumbs.component';
 import { ReviewSummaryComponent } from '@pages/components/review-summary.component';
 import { CartPanelComponent } from '@pages/components/cart-panel.component';
 import { CustomSelectComponent } from '@pages/components/custom-select.component';
+import { ProductSelectionComponent } from '@pages/components/product-selection.component';
 import { productDetailData } from '@test-data/product-detail.data';
 
 /**
@@ -32,11 +33,16 @@ export class ProductDetailPage {
   readonly addToCartButton: Locator;
   readonly cartRows: Locator;
   readonly restockButton: Locator;
+  readonly floatingCartButton: Locator;
+  readonly floatingVariantButton: Locator;
+  readonly loginToOrderButton: Locator;
+  readonly disabledAddToCartButton: Locator;
   readonly searchProductList: ProductListComponent;
   readonly imageCarousel: ImageCarouselComponent;
   readonly breadcrumbs: BreadcrumbsComponent;
   readonly reviewSummary: ReviewSummaryComponent;
   readonly cartPanel: CartPanelComponent;
+  readonly productSelection: ProductSelectionComponent;
   readonly quantitySelect: CustomSelectComponent;
   readonly giftBoxSelect: CustomSelectComponent;
   readonly noshiSelect: CustomSelectComponent;
@@ -59,20 +65,62 @@ export class ProductDetailPage {
     // shows `名入れする` instead of `カートに入れる`, so row count is the reliable "variant" signal.
     this.cartRows = page.locator('.product-information__cartset');
     this.restockButton = page.locator('.button-restock-notice');
+    // Floating cart button is a <button> tagged `.js-float-cart` (single SKU, adds directly) or
+    // `.js-float-product-selection` (multi SKU, opens the 商品タイプを選択 overlay). Scoped to the
+    // <button> to avoid the QuickCart/FavoriteDialog <a> links that share `.button--primary-S-floating`.
+    this.floatingCartButton = page.locator('button.js-float-cart, button.js-float-product-selection');
+    this.floatingVariantButton = page.locator('button.js-float-product-selection');
+    // Gold-member product, guest → CTA label `ログインして注文` (goldAccessButton.js), both in the
+    // page-body cart row and the floating bar.
+    this.loginToOrderButton = page.getByRole('button', { name: productDetailData.text.loginToOrder });
+    // Add-cart button rendered but disabled (inv 0 + restock_flg 0 → isAddCartDisabled).
+    this.disabledAddToCartButton = page.locator(
+      '.product-information__cartset button.button--primary-S[disabled]',
+    );
     this.searchProductList = new ProductListComponent(page);
     this.imageCarousel = new ImageCarouselComponent(page);
     this.breadcrumbs = new BreadcrumbsComponent(page);
     this.reviewSummary = new ReviewSummaryComponent(page);
     this.cartPanel = new CartPanelComponent(page);
+    this.productSelection = new ProductSelectionComponent(page);
     this.quantitySelect = new CustomSelectComponent(page, 'select--S');
     this.giftBoxSelect = new CustomSelectComponent(page, 'select--giftbox');
     this.noshiSelect = new CustomSelectComponent(page, 'select--wrapping');
   }
 
   /** Opens a product detail page directly by its jan code. */
-  async gotoByCode(code: string): Promise<void> {
-    await this.page.goto(`/${code}`);
+  async gotoByCode(code: string, query?: Record<string, string>): Promise<void> {
+    const queryString = query ? `?${new URLSearchParams(query).toString()}` : '';
+
+    await this.page.goto(`/${code}${queryString}`);
     await this.expectLoaded();
+  }
+
+  async expectQueryParamValue(name: string, value: string): Promise<void> {
+    await expect.poll(() => new URL(this.page.url()).searchParams.get(name)).toBe(value);
+  }
+
+  /**
+   * Clicks the page-body add-to-cart CTA and waits for the guest login redirect. When a
+   * `discount_code` is present, add-to-cart runs a login check first (`utils/cart.js` →
+   * `callApiCheckIsLogin`); a guest is redirected to the barista/login domain rather than adding.
+   */
+  async addToCartExpectingLoginRedirect(): Promise<void> {
+    await Promise.all([
+      this.page.waitForURL(productDetailData.loginRedirectUrlPattern),
+      this.addToCartButton.first().click(),
+    ]);
+  }
+
+  /**
+   * Opens the multi-variant selection overlay via the floating button. The floating button is
+   * `position: fixed` and gets pointer-intercepted by the inline cart rows near the top of the page,
+   * so scroll to the bottom first to free it, then click.
+   */
+  async openVariantOverlay(): Promise<void> {
+    await this.page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await this.floatingVariantButton.click();
+    await this.productSelection.expectOpen();
   }
 
   /**

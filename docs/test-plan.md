@@ -155,8 +155,11 @@ Batch 1 (display + navigation) is covered by
 [cart.spec.ts](../tests/e2e/product-detail/cart.spec.ts), which pins staging product codes per CTA
 state (single-SKU / multi-SKU / out-of-stock / gift-box / noshi) in `product-detail.data.ts` —
 add-to-cart POSTs to the real cart service under a fresh anonymous `visitor_code` per test context,
-so tests stay independent with no cleanup. The page is template-driven (`Show.vue` → `C##` by
-`program_id`) with **no `data-testid`**, so locators use semantic classes: name `C12`
+so tests stay independent with no cleanup. Batch 3 (CTA states) is covered by
+[cta-states.spec.ts](../tests/e2e/product-detail/cta-states.spec.ts): Gold-guest CTA, the
+`商品タイプを選択` overlay, add-cart Hide/Disable states — also pinned staging codes. The page is
+template-driven (`Show.vue` → `C##` by `program_id`) with **no `data-testid`**, so locators use
+semantic classes: name `C12`
 `.product-information__heading h1`, price `.product-information__price`, image carousel `C01`
 `.image-carousel`, review summary `C46` `.review-section`, related products `C55` `.section-recommend`,
 cart row `ItemC20C21` `.product-information__cartset`, confirmation `QuickCart` `.float-cart`.
@@ -174,10 +177,20 @@ cart row `ItemC20C21` `.product-information__cartset`, confirmation `QuickCart` 
 - [x] Add to cart — multi-SKU product: renders one `ItemC20C21` cart row per SKU (each with its own
       quantity `CustomSelect`); adds the first plain (`not_personalizable`) variant → confirmation.
       **Note:** C05/C08 are food-pairing carousels, not size/temperature selectors; there is no
-      size/temperature radio. The `MultipleProduct` "商品タイプを選択" overlay (floating button) is a
-      secondary path not exercised — desktop shows per-SKU rows inline, which is what the test uses.
+      size/temperature radio.
+- [x] Multi-variant `商品タイプを選択` overlay (`MultipleProduct`, Batch 3): the floating
+      `.js-float-product-selection` button opens the overlay (scroll to page bottom first — the fixed
+      button is pointer-intercepted by inline rows otherwise); overlay lists variant rows and adds one
+      → confirmation.
+- [x] Add-cart CTA states (Batch 3, `cta-states.spec.ts`): **Gold-member as guest** →
+      `ログインして注文` (`.button--login-to-order`, resolves after async `/skus/user-info`); **Hide**
+      when `purchase_methods` excludes ONLINE_STORE (no cart CTA); **Disable** when
+      `inv 0 + restock_flg 0` (`.button--primary-S[disabled]`). `Gold会員向け` (logged-in non-gold)
+      needs auth — deferred.
 - [ ] Add-to-cart error case (out of stock / API error): `ErrorMsg` / `ErrorDialog` show correctly,
       with retry. *(Deferred — needs a product that forces an add-cart API error.)*
+- [ ] Lottery CTA: price-only state during a lottery window. *(Deferred — no in-window lottery
+      fixture on staging; the one found expired in 2024.)*
 - [x] Gift wrap / Noshi: `select--giftbox` / `select--wrapping` `CustomSelect`s inside `ItemC20C21`
       (NOT C22 — C22 is taste-characteristics) render with their options (`ボックスなし`/`ボックスあり`,
       noshi variants) and are selectable. Requires a gift-eligible product whose gift SKU is **in
@@ -198,6 +211,13 @@ cart row `ItemC20C21` `.product-information__cartset`, confirmation `QuickCart` 
       Runtime-skipped when the carousel isn't rendered for a product. (Was mislabeled C18/C19; C18 is
       store/rewards links, C19 is beverage pricing.)
 - [ ] Responsive mobile: `FloatingCart` sticks in the correct position on scroll.
+- [x] **eTicket context** (`/{code}?discount_code=`, `eticket.spec.ts`): same `/{code}` route with a
+      coupon query param (`Show.vue` reads `discount_code`). Guest/no-login rows of the manual "Prd
+      detail - eTicket" / "Add cart - eTicket" sheet: `discount_code` persists in the URL; detail
+      renders normally (name + price); **guest add-to-cart with a discount_code redirects to login**
+      (cross-domain `login2.starbucks.co.jp`, via `callApiCheckIsLogin`). Uses pinned coupon `884`
+      (`Birthday Reward`) + product `3450000000003`. Logged-in add-cart/quick-cart/token rows
+      (ID-0028+) need auth — deferred.
 
 ### 4.3 E-Ticket / Coupon listing (`/ticket_items?discount_code=`) — P1
 
