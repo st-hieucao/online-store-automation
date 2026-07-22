@@ -22,7 +22,7 @@ test.describe(`Product Detail | CTA states ${testTags.regression}`, () => {
   });
 
   test('should open the multi-variant selection overlay from the floating button', async ({ productDetailPage }) => {
-    await productDetailPage.gotoByCode(products.multiVariantOverlay);
+    await productDetailPage.gotoByCode(products.multiVariant);
 
     await productDetailPage.openVariantOverlay();
 
@@ -30,7 +30,7 @@ test.describe(`Product Detail | CTA states ${testTags.regression}`, () => {
   });
 
   test(`should add a variant from the selection overlay ${testTags.smoke}`, async ({ productDetailPage }) => {
-    await productDetailPage.gotoByCode(products.multiVariantOverlay);
+    await productDetailPage.gotoByCode(products.multiVariant);
 
     await test.step('Open the overlay and add the first variant', async () => {
       await productDetailPage.openVariantOverlay();
@@ -61,7 +61,7 @@ test.describe(`Product Detail | CTA states ${testTags.regression}`, () => {
   });
 
   test('should render an enabled add-to-cart CTA on a multi-SKU product row', async ({ productDetailPage }) => {
-    await productDetailPage.gotoByCode(products.multiVariantOverlay);
+    await productDetailPage.gotoByCode(products.multiVariant);
 
     await test.step('Two cart rows render', async () => {
       await expect(productDetailPage.cartRows).toHaveCount(2);

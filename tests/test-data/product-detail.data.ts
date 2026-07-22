@@ -58,7 +58,11 @@ export const productDetailData = {
   products: {
     /** 1 SKU, in-stock, no gift, not personalizable → clean single-SKU add-to-cart. */
     singleSku: '2340000000009',
-    /** 2 SKUs both in-stock, non-Gold, plain add-to-cart → multi-variant overlay + add. */
+    /**
+     * Non-Gold multi-SKU product (2 SKUs, in-stock): row 0 has an enabled `カートに入れる`, row 1 is
+     * `名入れする` (personalize). Used both for the inline multi-SKU add (cart.spec) and the
+     * `商品タイプを選択` floating overlay (cta-states.spec).
+     */
     multiVariant: '4524785629905',
     /** 1 SKU, out of stock, restock_notice_flg=true → 再入荷お知らせ CTA. */
     outOfStock: '2026101604000',
@@ -68,12 +72,6 @@ export const productDetailData = {
     noshi: '4300515202600',
     /** Gold-member product, in-stock → guest CTA `ログインして注文` (page-body + floating). */
     gold: '5402026522001',
-    /**
-     * Non-Gold multi-SKU product (2 SKUs, in-stock): floating `カートに入れる` opens the
-     * `商品タイプを選択` overlay; overlay row 0 has an enabled add-to-cart, row 1 is `名入れする`
-     * (personalize). Same fixture the Batch 2 multi-SKU test uses.
-     */
-    multiVariantOverlay: '4524785629905',
     /** No ONLINE_STORE purchase method → add-to-cart CTA is not rendered (Hide state). */
     noOnlineStore: '2340000000006',
     /** 2 SKUs both out of stock: first `inv 0 + restock_flg 0` (Disable), second `flg 1` (Restock). */

@@ -33,7 +33,6 @@ export class ProductDetailPage {
   readonly addToCartButton: Locator;
   readonly cartRows: Locator;
   readonly restockButton: Locator;
-  readonly floatingCartButton: Locator;
   readonly floatingVariantButton: Locator;
   readonly loginToOrderButton: Locator;
   readonly disabledAddToCartButton: Locator;
@@ -65,10 +64,9 @@ export class ProductDetailPage {
     // shows `名入れする` instead of `カートに入れる`, so row count is the reliable "variant" signal.
     this.cartRows = page.locator('.product-information__cartset');
     this.restockButton = page.locator('.button-restock-notice');
-    // Floating cart button is a <button> tagged `.js-float-cart` (single SKU, adds directly) or
-    // `.js-float-product-selection` (multi SKU, opens the 商品タイプを選択 overlay). Scoped to the
-    // <button> to avoid the QuickCart/FavoriteDialog <a> links that share `.button--primary-S-floating`.
-    this.floatingCartButton = page.locator('button.js-float-cart, button.js-float-product-selection');
+    // The floating variant button (`.js-float-product-selection`) opens the 商品タイプを選択 overlay
+    // on multi-SKU products. Scoped to the <button> to avoid the QuickCart/FavoriteDialog <a> links
+    // that share `.button--primary-S-floating`.
     this.floatingVariantButton = page.locator('button.js-float-product-selection');
     // Gold-member product, guest → CTA label `ログインして注文` (goldAccessButton.js), both in the
     // page-body cart row and the floating bar.
