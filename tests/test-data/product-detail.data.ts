@@ -31,6 +31,14 @@ export const productDetailData = {
     loginToOrder: 'ログインして注文',
     /** Multi-variant overlay heading (MultipleProduct.vue). */
     selectProductType: '商品タイプを選択',
+    /** Noshi eligibility icon (C16.vue `.product-information__gift`, driven by `gift_type_3`). */
+    noshiIcon: '包装・のし対象',
+    /** C04 Related Content heading. */
+    relatedContentHeading: '関連コンテンツ',
+    /** View History section heading (external `item-history.js`). */
+    viewHistoryHeading: '最近見た商品',
+    /** MOP button label (MOPButton.vue, async S3-gated). */
+    mopButton: 'モバイルオーダーする',
   },
   /** Detail price element renders `¥1,234`, optionally with a `〜` "starts from" suffix. */
   priceFormat: /^¥[\d,]+〜?$/,
@@ -76,6 +84,8 @@ export const productDetailData = {
     noOnlineStore: '2340000000006',
     /** 2 SKUs both out of stock: first `inv 0 + restock_flg 0` (Disable), second `flg 1` (Restock). */
     addCartDisabled: '2025101200001',
+    /** 1 SKU with no gift attrs → the Noshi icon (`gift_type_3`) is absent. */
+    noNoshi: '2340000000009',
   },
   /** Page-body `CustomSelect` gift-box option labels (`convertGiftBoxOpt`). */
   giftBoxOptions: {

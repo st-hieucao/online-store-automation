@@ -7,8 +7,10 @@ code. Cập nhật bởi skill `/summarize-test` — mỗi khi thêm/sửa test 
 Phạm vi hiện tại: **Batch 1 — hiển thị + điều hướng** (`display.spec.ts`, `navigation.spec.ts`; tới
 sản phẩm bằng cách click card thật trên `/search`), **Batch 2 — luồng giỏ hàng** (`cart.spec.ts`;
 mở thẳng mã sản phẩm staging đã ghim), **Batch 3 — trạng thái CTA + overlay** (`cta-states.spec.ts`;
-Gold-guest, overlay `商品タイプを選択`, Hide/Disable), và **eTicket context** (`eticket.spec.ts`;
-`/{code}?discount_code=`, chỉ guest/no-login). Chưa cover auth (favorite, các case eTicket cần login).
+Gold-guest, overlay `商品タイプを選択`, Hide/Disable), **eTicket context** (`eticket.spec.ts`;
+`/{code}?discount_code=`, chỉ guest/no-login), **gift wrap** (`gift-wrap.spec.ts`; pulldown
+Giftbox/Noshi + icon + guest add), và **components** (`components.spec.ts`; View History, C04,
+floating state). Chưa cover auth (favorite, các case eTicket/wrap cần login).
 Trang là template-driven
 (`Show.vue` render `C##` theo `program_id`) và **không có `data-testid`**, nên locator dùng class ngữ
 nghĩa: tên `.product-information__heading h1`, giá `.product-information__price`, carousel ảnh
@@ -106,6 +108,43 @@ staging đã ghim: `discount_code=884` (`Birthday Reward`), sản phẩm `345000
 | 2 | should render the product detail normally in the eTicket context | Mở detail với discount_code | Tên H1 không rỗng + có ≥1 giá đúng định dạng (bỏ assert ảnh vì sản phẩm test không có ảnh) |
 | 3 🔥 | should redirect a guest to login when adding to cart with a discount_code | Guest bấm `カートに入れる` trên detail có discount_code | Điều hướng sang trang login (`login2.starbucks.co.jp` / `/redirect-barista`) — do `callApiCheckIsLogin` chặn guest |
 
+## gift-wrap.spec.ts
+
+Spec: [tests/e2e/product-detail/gift-wrap.spec.ts](../../tests/e2e/product-detail/gift-wrap.spec.ts)
+
+Chi tiết pulldown Giftbox/Noshi + icon Noshi + guest add-cart kèm wrap option (bảng thủ công "Add
+Cart function", các dòng no-login). Pulldown là widget `CustomSelect` thân trang (click trigger +
+option span, không phải `<select>` native). Guest add-cart (không discount_code) thành công không cần
+login.
+
+### Gift wrap (6 case)
+
+| # | Tên test | Kịch bản | Kỳ vọng chính |
+|---|---|---|---|
+| 1 | should render both giftbox options enabled for an in-stock gift product | Mở sản phẩm giftbox (`4524785596955`), mở pulldown | 2 option `ボックスなし`/`ボックスあり` hiện, không option nào bị `.disabled` (box SKU còn hàng) |
+| 2 | should reflect the chosen giftbox option in the pulldown trigger | Chọn `ボックスあり` | Trigger hiển thị `ボックスあり` |
+| 3 | should render selectable noshi options for a noshi-eligible product | Mở sản phẩm noshi (`4300515202600`) | Pulldown có `包装なし` + >1 option, chọn được option thứ 2 |
+| 4 | should show the noshi icon only for a noshi-eligible product | So sánh sản phẩm có noshi (`4300515202600`) vs không noshi (`2340000000009`) | Icon `包装・のし対象` (`.product-information__gift`) hiện với sản phẩm noshi; **không** hiện với sản phẩm không noshi |
+| 5 🔥 | should add to cart after choosing a giftbox option as a guest | Guest chọn `ボックスあり` rồi add | Panel `カートに追加されました` hiện |
+| 6 | should add to cart after choosing a noshi option as a guest | Guest chọn option noshi rồi add | Panel xác nhận hiện |
+
+## components.spec.ts
+
+Spec: [tests/e2e/product-detail/components.spec.ts](../../tests/e2e/product-detail/components.spec.ts)
+
+Các thành phần phụ: View History, C04 Related Content, trạng thái floating button. View History &
+C04 do script ngoài / data async render, nên assert phòng thủ (`test.skip` khi vắng) thay vì giả định
+luôn có.
+
+### Components (4 case)
+
+| # | Tên test | Kịch bản | Kỳ vọng chính |
+|---|---|---|---|
+| 1 | should render C04 related content with navigable links when present | Mở sản phẩm; nếu `.relevant-contents` render | Heading `関連コンテンツ` + link card có href thật (skip nếu sản phẩm không có related content) |
+| 2 | should list a previously viewed product ... in view history | Mở sản phẩm A rồi mở sản phẩm B (cookie ghi khi rời trang A) | View History (`.history_component .sec_history`) hiện A (`img[alt="A"]`), **không** hiện B; click A điều hướng về A (skip nếu widget ngoài không render) |
+| 3 | should show an enabled add-to-cart floating state on an in-stock product | Mở sản phẩm còn hàng | Floating button hiện `カートに入れる`, enabled, không có class `button--tertiary` |
+| 4 | should show the restock floating state on an out-of-stock product | Mở sản phẩm hết hàng (`2026101604000`) | Floating button hiện `再入荷お知らせ` |
+
 ## Ghi chú / cần lưu ý
 
 - **Chạy trên môi trường thật (`dev.menu.starbucks.co.jp`), phụ thuộc dữ liệu catalog thật** — không
@@ -157,8 +196,28 @@ staging đã ghim: `discount_code=884` (`Birthday Reward`), sản phẩm `345000
 - Sản phẩm eTicket ghim (`LTest_Product Normal 003`) **không có ảnh** → test display chỉ assert tên +
   giá; coverage carousel đã có ở `display.spec.ts`.
 
+**gift-wrap.spec.ts:**
+- Giftbox pulldown chỉ render 2 option cố định (`ボックスなし`/`ボックスあり`); noshi option là
+  **data-driven** (đọc động qua `optionTexts()`, chọn option[1]) vì text noshi thay đổi theo sản phẩm.
+- Icon Noshi (`.product-information__gift` + `包装・のし対象`) do `gift_type_3` `.some()` toàn SKU +
+  `wrappingStatus===1` — khác với pulldown noshi.
+- **giftbox-inventory=0 (disable `ボックスあり`) KHÔNG test được**: box SKU (`4524785459915`) dùng chung,
+  luôn còn 9989 hàng → option không bao giờ `.disabled`.
+
+**components.spec.ts:**
+- **View History do script ngoài `item-history.js` render (async, opaque)** — mount `.history_component`
+  là Vue nhưng nội dung bên trong (`.sec_history`, card `div.cursor-pointer`, `img[alt=itemCode]`) do
+  script ngoài dựng. Test skip runtime nếu widget không render trong timeout. Card điều hướng bằng JS
+  click (không có `<a href>`) → assert qua URL đổi.
+- View History loại trừ sản phẩm hiện tại (code không nằm trong list); cookie ghi khi rời trang
+  (`pagehide`), nên phải mở A → mở B mới thấy A.
+- C04 render có điều kiện (`relatedContents?.length`) → skip nếu vắng. C04 là `<a href>` thật (điều
+  hướng được), khác C55 (JS click).
+
 - **Chưa cover (batch sau):** add-to-cart lỗi API/retry (`ErrorDialog`), CTA `Gold会員向け` (login,
   không phải member — cần auth), **lottery** (không có fixture còn trong window trên staging — cái tìm
-  được đã hết hạn 2024), **eTicket các case cần login** (add-cart success + quick-cart, token/session
-  expired, logout — ID-0028+ trong bảng thủ công), favorite (cần auth), biến thể partner
-  (`/partner/{code}`) và preview (`/preview/{code}`), vị trí sticky của `FloatingCart` trên mobile.
+  được đã hết hạn 2024), **eTicket/wrap các case cần login** (add-cart success + quick-cart,
+  token/session expired, logout — ID-0028+/ID-0068/0070), **giftbox-inventory=0 disable** (box SKU
+  dùng chung luôn còn hàng), **18-option noshi** (không có fixture), **Partner giftbox/noshi**
+  (`/partner` trả 401 với guest), **MOP/C03/C29 internals** (script ngoài/async), favorite (cần auth),
+  biến thể preview (`/preview/{code}`), vị trí sticky của `FloatingCart` trên mobile.

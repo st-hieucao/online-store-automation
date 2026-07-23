@@ -218,6 +218,18 @@ cart row `ItemC20C21` `.product-information__cartset`, confirmation `QuickCart` 
       (cross-domain `login2.starbucks.co.jp`, via `callApiCheckIsLogin`). Uses pinned coupon `884`
       (`Birthday Reward`) + product `3450000000003`. Logged-in add-cart/quick-cart/token rows
       (ID-0028+) need auth — deferred.
+- [x] **Giftbox / Noshi pulldown detail** (`gift-wrap.spec.ts`, manual ID-0048+): giftbox pulldown
+      renders `ボックスなし`/`ボックスあり` (both enabled for an in-stock gift-box SKU) + select reflects
+      in the trigger; noshi pulldown renders `包装なし` + noshi options and is selectable; the Noshi
+      **icon** (`C16` `.product-information__gift` `包装・のし対象`, driven by `gift_type_3`) shows on a
+      noshi product and is absent otherwise; guest add-cart after choosing a giftbox/noshi option
+      succeeds (`カートに追加されました`). *Deferred:* giftbox-inventory=0 disable (shared box SKU always
+      stocked), 18-option noshi (no fixture), Partner-page pulldowns (`/partner` returns 401 to guests).
+- [x] **View History + components** (`components.spec.ts`): View History (external `item-history.js`)
+      lists a previously-viewed product and excludes the current one, card click navigates back to it
+      (runtime-skip if the async widget doesn't render); C04 Related Content links are navigable when
+      present; floating button shows the enabled `カートに入れる` state vs the `再入荷お知らせ` restock
+      state. *Deferred:* MOP / C03 / C29 internals (fully external/async).
 
 ### 4.3 E-Ticket / Coupon listing (`/ticket_items?discount_code=`) — P1
 

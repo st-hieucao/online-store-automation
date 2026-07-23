@@ -36,6 +36,11 @@ export class ProductDetailPage {
   readonly floatingVariantButton: Locator;
   readonly loginToOrderButton: Locator;
   readonly disabledAddToCartButton: Locator;
+  readonly noshiIcon: Locator;
+  readonly relatedContent: Locator;
+  readonly mopButton: Locator;
+  readonly viewHistory: Locator;
+  readonly viewHistorySection: Locator;
   readonly searchProductList: ProductListComponent;
   readonly imageCarousel: ImageCarouselComponent;
   readonly breadcrumbs: BreadcrumbsComponent;
@@ -75,6 +80,18 @@ export class ProductDetailPage {
     this.disabledAddToCartButton = page.locator(
       '.product-information__cartset button.button--primary-S[disabled]',
     );
+    // Noshi eligibility icon (C16): the `.product-information__gift` row whose text is 包装・のし対象
+    // (siblings are 専用ボックス対象 / ギフトラッピング対象), driven by `gift_type_3`.
+    this.noshiIcon = page.locator('.product-information__gift', {
+      hasText: productDetailData.text.noshiIcon,
+    });
+    // C04 Related Content (Vue-rendered, real <a> links).
+    this.relatedContent = page.locator('.relevant-contents');
+    // MOP button (MOPButton.vue) — an <a>, async S3-gated (may be absent).
+    this.mopButton = page.getByRole('link', { name: productDetailData.text.mopButton });
+    // View History (external item-history.js): `.history_component` mount → injected `.sec_history`.
+    this.viewHistory = page.locator('.history_component');
+    this.viewHistorySection = this.viewHistory.locator('.sec_history');
     this.searchProductList = new ProductListComponent(page);
     this.imageCarousel = new ImageCarouselComponent(page);
     this.breadcrumbs = new BreadcrumbsComponent(page);
@@ -157,5 +174,19 @@ export class ProductDetailPage {
 
   async productNameText(): Promise<string> {
     return (await this.productName.textContent())?.trim() ?? '';
+  }
+
+  /** Selects a gift-box option via the custom-select widget, then adds to cart and asserts the panel. */
+  async expectAddedWithGiftBox(optionLabel: string): Promise<void> {
+    await this.giftBoxSelect.selectByText(optionLabel);
+    await this.addToCartButton.first().click();
+    await this.cartPanel.expectAdded();
+  }
+
+  /** Selects a noshi option via the custom-select widget, then adds to cart and asserts the panel. */
+  async expectAddedWithNoshi(optionLabel: string): Promise<void> {
+    await this.noshiSelect.selectByText(optionLabel);
+    await this.addToCartButton.first().click();
+    await this.cartPanel.expectAdded();
   }
 }
