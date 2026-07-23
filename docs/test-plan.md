@@ -148,22 +148,88 @@ Two more live-data behaviors worth knowing before writing more sidebar tests:
 
 ### 4.2 Product Detail (`/{code}`) — P0
 
-- [ ] Displays correct basic info: name, price (with tax), image carousel navigable.
-- [ ] Add to cart — single-SKU product: clicking CTA → `FloatingCart`/`QuickCart` quantity updates.
-- [ ] Add to cart — multi-variant product (C20/C21 `MultipleProduct`): select variant → select
-      size/temperature (C05/C08) → successfully added to cart.
+Batch 1 (display + navigation) is covered by
+[display.spec.ts](../tests/e2e/product-detail/display.spec.ts) /
+[navigation.spec.ts](../tests/e2e/product-detail/navigation.spec.ts) (reach a product via a real
+`/search` card). Batch 2 (cart flow) is covered by
+[cart.spec.ts](../tests/e2e/product-detail/cart.spec.ts), which pins staging product codes per CTA
+state (single-SKU / multi-SKU / out-of-stock / gift-box / noshi) in `product-detail.data.ts` —
+add-to-cart POSTs to the real cart service under a fresh anonymous `visitor_code` per test context,
+so tests stay independent with no cleanup. Batch 3 (CTA states) is covered by
+[cta-states.spec.ts](../tests/e2e/product-detail/cta-states.spec.ts): Gold-guest CTA, the
+`商品タイプを選択` overlay, add-cart Hide/Disable states — also pinned staging codes. The page is
+template-driven (`Show.vue` → `C##` by `program_id`) with **no `data-testid`**, so locators use
+semantic classes: name `C12`
+`.product-information__heading h1`, price `.product-information__price`, image carousel `C01`
+`.image-carousel`, review summary `C46` `.review-section`, related products `C55` `.section-recommend`,
+cart row `ItemC20C21` `.product-information__cartset`, confirmation `QuickCart` `.float-cart`.
+
+- [x] Displays correct basic info: name (non-empty H1), price (at least one in `¥1,234`/`¥1,234〜`
+      format), image carousel (active slide + real `img src`). Image-carousel *navigation* is
+      desktop-by-nav-item (arrows are SP-only, injected into `.zoom-area`); covered only when the
+      product has >1 image (runtime-skipped otherwise). Note: the tax-inclusive notice
+      (`.product-information__supplement--notice`) is asserted, but it renders `v-if="isPriceInVatExist"`
+      — currently relies on the first search card having a VAT price (flag for review if catalog shifts).
+- [x] Add to cart — single-SKU product: click the page-body CTA (`カートに入れる`) → `QuickCart`
+      confirmation (`カートに追加されました` + `購入に進む`). Also asserts a chosen quantity (via the
+      page-body `CustomSelect` widget — not a native `<select>`, so `selectOption` won't drive it; the
+      test clicks the trigger + option span) is reflected in the confirmation `数量`.
+- [x] Add to cart — multi-SKU product: renders one `ItemC20C21` cart row per SKU (each with its own
+      quantity `CustomSelect`); adds the first plain (`not_personalizable`) variant → confirmation.
+      **Note:** C05/C08 are food-pairing carousels, not size/temperature selectors; there is no
+      size/temperature radio.
+- [x] Multi-variant `商品タイプを選択` overlay (`MultipleProduct`, Batch 3): the floating
+      `.js-float-product-selection` button opens the overlay (scroll to page bottom first — the fixed
+      button is pointer-intercepted by inline rows otherwise); overlay lists variant rows and adds one
+      → confirmation.
+- [x] Add-cart CTA states (Batch 3, `cta-states.spec.ts`): **Gold-member as guest** →
+      `ログインして注文` (`.button--login-to-order`, resolves after async `/skus/user-info`); **Hide**
+      when `purchase_methods` excludes ONLINE_STORE (no cart CTA); **Disable** when
+      `inv 0 + restock_flg 0` (`.button--primary-S[disabled]`). `Gold会員向け` (logged-in non-gold)
+      needs auth — deferred.
 - [ ] Add-to-cart error case (out of stock / API error): `ErrorMsg` / `ErrorDialog` show correctly,
-      with retry.
-- [ ] Gift wrap / Noshi (C22): selecting a wrap option sets the correct value before adding to cart.
-- [ ] Rating & review summary render correctly (average score, 3 latest reviews) + link to Review List.
-- [ ] Breadcrumb correct for the product's category.
-- [ ] Out-of-stock / not-yet-released / lottery product: CTA state changes accordingly (disabled,
-      restock button...).
+      with retry. *(Deferred — needs a product that forces an add-cart API error.)*
+- [ ] Lottery CTA: price-only state during a lottery window. *(Deferred — no in-window lottery
+      fixture on staging; the one found expired in 2024.)*
+- [x] Gift wrap / Noshi: `select--giftbox` / `select--wrapping` `CustomSelect`s inside `ItemC20C21`
+      (NOT C22 — C22 is taste-characteristics) render with their options (`ボックスなし`/`ボックスあり`,
+      noshi variants) and are selectable. Requires a gift-eligible product whose gift SKU is **in
+      stock** (`isShowAddCartOptions`), so the pinned gift codes are stock-verified.
+- [x] Rating & review summary (`C46`) render: average-score stars + `{n}件` count + link to the full
+      review list (`/{item_code}/review`), handling both empty (`0件のレビュー`) and populated
+      branches. **Renders only for `beans`/`tealeaf`/`tumblermug`/`goods`/`brewing` categories, NOT
+      beverage** — the review test navigates from `?category_code=tumblermug`.
+- [x] Breadcrumb: `Home` link first, current product as the last `.current` crumb.
+- [x] Out-of-stock product: renders the `再入荷お知らせ` restock CTA (`.button-restock-notice`) and
+      **no** add-to-cart button (display-only, no cart write). Not-yet-released / lottery states still
+      deferred.
 - [ ] Partner variant (`/partner/{code}`): no Favorite button, different pricing rules (if any
       observable difference).
 - [ ] Preview variant (`/preview/{code}`): purchase not allowed (no cart flow) — view only.
-- [ ] Related products carousel (C18/C19): displays, click navigates correctly.
+- [x] Related products carousel (`C55`, "こちらも一緒にいかがでしょうか"): clicking a card navigates to
+      another `/{code}` detail page (JS `@click` handler, not `<a href>` — asserted via URL change).
+      Runtime-skipped when the carousel isn't rendered for a product. (Was mislabeled C18/C19; C18 is
+      store/rewards links, C19 is beverage pricing.)
 - [ ] Responsive mobile: `FloatingCart` sticks in the correct position on scroll.
+- [x] **eTicket context** (`/{code}?discount_code=`, `eticket.spec.ts`): same `/{code}` route with a
+      coupon query param (`Show.vue` reads `discount_code`). Guest/no-login rows of the manual "Prd
+      detail - eTicket" / "Add cart - eTicket" sheet: `discount_code` persists in the URL; detail
+      renders normally (name + price); **guest add-to-cart with a discount_code redirects to login**
+      (cross-domain `login2.starbucks.co.jp`, via `callApiCheckIsLogin`). Uses pinned coupon `884`
+      (`Birthday Reward`) + product `3450000000003`. Logged-in add-cart/quick-cart/token rows
+      (ID-0028+) need auth — deferred.
+- [x] **Giftbox / Noshi pulldown detail** (`gift-wrap.spec.ts`, manual ID-0048+): giftbox pulldown
+      renders `ボックスなし`/`ボックスあり` (both enabled for an in-stock gift-box SKU) + select reflects
+      in the trigger; noshi pulldown renders `包装なし` + noshi options and is selectable; the Noshi
+      **icon** (`C16` `.product-information__gift` `包装・のし対象`, driven by `gift_type_3`) shows on a
+      noshi product and is absent otherwise; guest add-cart after choosing a giftbox/noshi option
+      succeeds (`カートに追加されました`). *Deferred:* giftbox-inventory=0 disable (shared box SKU always
+      stocked), 18-option noshi (no fixture), Partner-page pulldowns (`/partner` returns 401 to guests).
+- [x] **View History + components** (`components.spec.ts`): View History (external `item-history.js`)
+      lists a previously-viewed product and excludes the current one, card click navigates back to it
+      (runtime-skip if the async widget doesn't render); C04 Related Content links are navigable when
+      present; floating button shows the enabled `カートに入れる` state vs the `再入荷お知らせ` restock
+      state. *Deferred:* MOP / C03 / C29 internals (fully external/async).
 
 ### 4.3 E-Ticket / Coupon listing (`/ticket_items?discount_code=`) — P1
 

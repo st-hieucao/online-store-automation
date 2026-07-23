@@ -1,0 +1,223 @@
+# Test cases — Product Detail (`/{code}`)
+
+Tóm tắt các test case tự động (Playwright) cho màn Product Detail, để verify nhanh mà không cần đọc
+code. Cập nhật bởi skill `/summarize-test` — mỗi khi thêm/sửa test trong feature này, tìm file này
+để cập nhật thay vì tạo file mới.
+
+Phạm vi hiện tại: **Batch 1 — hiển thị + điều hướng** (`display.spec.ts`, `navigation.spec.ts`; tới
+sản phẩm bằng cách click card thật trên `/search`), **Batch 2 — luồng giỏ hàng** (`cart.spec.ts`;
+mở thẳng mã sản phẩm staging đã ghim), **Batch 3 — trạng thái CTA + overlay** (`cta-states.spec.ts`;
+Gold-guest, overlay `商品タイプを選択`, Hide/Disable), **eTicket context** (`eticket.spec.ts`;
+`/{code}?discount_code=`, chỉ guest/no-login), **gift wrap** (`gift-wrap.spec.ts`; pulldown
+Giftbox/Noshi + icon + guest add), và **components** (`components.spec.ts`; View History, C04,
+floating state). Chưa cover auth (favorite, các case eTicket/wrap cần login).
+Trang là template-driven
+(`Show.vue` render `C##` theo `program_id`) và **không có `data-testid`**, nên locator dùng class ngữ
+nghĩa: tên `.product-information__heading h1`, giá `.product-information__price`, carousel ảnh
+`.image-carousel`, review `.review-section`, sản phẩm liên quan `.section-recommend`, dòng cart
+`.product-information__cartset`, panel xác nhận `.float-cart`.
+
+## display.spec.ts
+
+Spec: [tests/e2e/product-detail/display.spec.ts](../../tests/e2e/product-detail/display.spec.ts)
+Page/Component Object: [tests/pages/product-detail.page.ts](../../tests/pages/product-detail.page.ts),
+[image-carousel.component.ts](../../tests/pages/components/image-carousel.component.ts),
+[breadcrumbs.component.ts](../../tests/pages/components/breadcrumbs.component.ts),
+[review-summary.component.ts](../../tests/pages/components/review-summary.component.ts)
+
+### Display (5 case)
+
+| # | Tên test | Kịch bản | Kỳ vọng chính |
+|---|---|---|---|
+| 1 🔥 | should render the product name, a formatted price, and a product image | Mở `/search`, click card đầu tiên → landing trang chi tiết | H1 tên sản phẩm hiển thị & không rỗng; có ít nhất 1 giá đúng định dạng `¥1,234` / `¥1,234〜`; carousel có 1 slide `.active` với `img src` thật |
+| 2 | should show the tax-inclusive price notice | Vào trang chi tiết từ card `/search` đầu tiên | Ghi chú giá đã bao gồm thuế (`.product-information__supplement--notice`) hiển thị và chứa chữ "税込" |
+| 3 | should advance the active image when a product has more than one image | Vào trang chi tiết, đếm số ảnh; nếu ≥2 ảnh thì click nav item thứ 2 | Nav item được click chuyển sang trạng thái `.active` (điều hướng carousel trên desktop bằng nav item, không phải nút mũi tên) |
+| 4 | should show a breadcrumb ending in the current product | Vào trang chi tiết từ card `/search` | Breadcrumb hiển thị; crumb đầu là link "Home" (có href); crumb cuối `.current` không rỗng |
+| 5 | should render the review summary for a review-eligible product | Mở `/search?category_code=tumblermug`, click card đầu → trang chi tiết | Khối review (`C46`) + widget sao hiển thị; có review count (link `0件のレビュー` khi rỗng, hoặc `{n}件` khi có review) |
+
+## navigation.spec.ts
+
+Spec: [tests/e2e/product-detail/navigation.spec.ts](../../tests/e2e/product-detail/navigation.spec.ts)
+
+### Navigation (3 case)
+
+| # | Tên test | Kịch bản | Kỳ vọng chính |
+|---|---|---|---|
+| 6 🔥 | should land on the product detail page matching the clicked search card | Click card đầu tiên trên `/search`, lấy `href` của card | URL landing khớp đúng `href` của card đã click; tên sản phẩm trên trang chi tiết không rỗng |
+| 7 | should navigate to the full review list from the review summary link | Vào trang chi tiết từ `?category_code=tumblermug`, click link review (`すべてのレビューを見る` khi có review, hoặc `0件のレビュー` khi rỗng) | Điều hướng tới URL danh sách review đầy đủ `/{item_code}/review` |
+| 8 | should navigate to another product when clicking a related-products card | Vào trang chi tiết; nếu có carousel sản phẩm liên quan (`C55`) thì click card đầu tiên | URL đổi sang 1 trang chi tiết `/{code}` khác (card điều hướng bằng JS `@click`, không phải `<a href>` → assert qua URL thay đổi); tên sản phẩm mới không rỗng |
+
+## cart.spec.ts
+
+Spec: [tests/e2e/product-detail/cart.spec.ts](../../tests/e2e/product-detail/cart.spec.ts)
+Component Object: [cart-panel.component.ts](../../tests/pages/components/cart-panel.component.ts),
+[custom-select.component.ts](../../tests/pages/components/custom-select.component.ts)
+
+Khác Batch 1: mỗi test mở thẳng 1 mã sản phẩm staging đã ghim theo trạng thái CTA (xem
+`productDetailData.products`) vì loại sản phẩm (số SKU / còn hàng / quà tặng) không thể đảm bảo qua
+điều hướng từ `/search`. Add-to-cart gọi API giỏ hàng thật theo cookie `visitor_code` ẩn danh — mỗi
+context test mới = giỏ rỗng, nên độc lập và không cần dọn dẹp.
+
+### Cart (7 case)
+
+| # | Tên test | Kịch bản | Kỳ vọng chính |
+|---|---|---|---|
+| 1 🔥 | should add a single-SKU product to the cart | Mở sản phẩm 1-SKU còn hàng (`2340000000009`), bấm `カートに入れる` | Panel xác nhận `QuickCart` hiện (`カートに追加されました` + link `購入に進む`); tên sản phẩm trong panel không rỗng |
+| 2 🔥 | should add a variant of a multi-SKU product to the cart | Mở sản phẩm nhiều SKU (`4524785629905`) | Hiển thị đúng 2 dòng cart (`.product-information__cartset`); bấm `カートに入れる` của biến thể đầu → panel xác nhận hiện |
+| 3 | should render a quantity selector on each variant row | Mở sản phẩm nhiều SKU | Có 2 dòng cart, mỗi dòng có widget chọn số lượng riêng (`.custom-select-wrap.select--S` ×2) |
+| 4 | should reflect the chosen quantity in the cart confirmation | Mở sản phẩm 1-SKU, đổi số lượng sang 2 qua widget custom-select (click trigger + option, KHÔNG phải `<select>` native), rồi add | Panel xác nhận hiện `数量` = 2 |
+| 5 | should show the restock CTA instead of add-to-cart for an out-of-stock product | Mở sản phẩm hết hàng có báo lại hàng (`2026101604000`) | Nút `再入荷お知らせ` (`.button-restock-notice`) hiện; **không** có nút add-to-cart (chỉ hiển thị, không ghi giỏ) |
+| 6 | should render a selectable gift-box option for a gift-eligible product | Mở sản phẩm hỗ trợ hộp quà, SKU còn hàng (`4524785596955`) | `.select--giftbox` (CustomSelect) hiện và chọn được option `ボックスあり` |
+| 7 | should render a selectable noshi option for a noshi-eligible product | Mở sản phẩm hỗ trợ noshi, còn hàng (`4300515202600`) | `.select--wrapping` hiện với >1 option và chọn được option thứ 2 |
+
+## cta-states.spec.ts
+
+Spec: [tests/e2e/product-detail/cta-states.spec.ts](../../tests/e2e/product-detail/cta-states.spec.ts)
+Component Object: [product-selection.component.ts](../../tests/pages/components/product-selection.component.ts)
+(overlay `商品タイプを選択`)
+
+Ma trận trạng thái nút Add Cart + overlay chọn biến thể, đối chiếu với bảng test thủ công "Add Cart
+function" của team. Dùng mã sản phẩm staging ghim theo trạng thái. CTA Gold hiện **sau** lời gọi
+`/skus/user-info` (async) nên assert bằng `expect` auto-retry, không phải lần render đầu.
+
+### CTA states (6 case)
+
+| # | Tên test | Kịch bản | Kỳ vọng chính |
+|---|---|---|---|
+| 1 | should show the login-to-order CTA for a Gold-member product as a guest | Mở sản phẩm Gold (`5402026522001`) khi chưa đăng nhập | CTA hiện `ログインして注文` (cả row page-body + floating); **không** có nút `カートに入れる` |
+| 2 | should open the multi-variant selection overlay from the floating button | Mở sản phẩm nhiều SKU (`4524785629905`), scroll xuống cuối trang rồi bấm nút floating | Overlay `商品タイプを選択` (`.float-product-selection.show`) mở với 2 dòng biến thể |
+| 3 🔥 | should add a variant from the selection overlay | Mở overlay, chọn dòng đầu bấm `カートに入れる` | Panel xác nhận `QuickCart` (`カートに追加されました`) hiện |
+| 4 | should not render an add-to-cart CTA when the product has no online-store method | Mở sản phẩm không có ONLINE_STORE (`2340000000006`) | Không có nút add-to-cart và không có nút restock (trạng thái Hide) |
+| 5 | should render a disabled add-to-cart button for an out-of-stock product without restock | Mở sản phẩm hết hàng không báo lại hàng (`2025101200001`, `inv 0 + restock_flg 0`) | Nút `カートに入れる` (`.button--primary-S[disabled]`) hiện nhưng bị disable |
+| 6 | should render an enabled add-to-cart CTA on a multi-SKU product row | Mở sản phẩm nhiều SKU (`4524785629905`) | Có 2 dòng cart; dòng add-to-cart có nút `カートに入れる` enabled |
+
+## eticket.spec.ts
+
+Spec: [tests/e2e/product-detail/eticket.spec.ts](../../tests/e2e/product-detail/eticket.spec.ts)
+
+Product Detail mở trong ngữ cảnh eTicket (coupon): `/{code}?discount_code=...` — cùng route `/{code}`,
+`discount_code` chỉ là query param (`Show.vue`), không phải trang riêng. Chỉ cover các case
+**no-login (guest)** của bảng thủ công "Prd detail - eTicket" / "Add cart - eTicket". Dùng coupon
+staging đã ghim: `discount_code=884` (`Birthday Reward`), sản phẩm `3450000000003`.
+
+### eTicket - guest (3 case)
+
+| # | Tên test | Kịch bản | Kỳ vọng chính |
+|---|---|---|---|
+| 1 | should keep the discount_code in the URL when opening a product | Mở `/3450000000003?discount_code=884` | URL giữ nguyên `discount_code=884` sau khi load |
+| 2 | should render the product detail normally in the eTicket context | Mở detail với discount_code | Tên H1 không rỗng + có ≥1 giá đúng định dạng (bỏ assert ảnh vì sản phẩm test không có ảnh) |
+| 3 🔥 | should redirect a guest to login when adding to cart with a discount_code | Guest bấm `カートに入れる` trên detail có discount_code | Điều hướng sang trang login (`login2.starbucks.co.jp` / `/redirect-barista`) — do `callApiCheckIsLogin` chặn guest |
+
+## gift-wrap.spec.ts
+
+Spec: [tests/e2e/product-detail/gift-wrap.spec.ts](../../tests/e2e/product-detail/gift-wrap.spec.ts)
+
+Chi tiết pulldown Giftbox/Noshi + icon Noshi + guest add-cart kèm wrap option (bảng thủ công "Add
+Cart function", các dòng no-login). Pulldown là widget `CustomSelect` thân trang (click trigger +
+option span, không phải `<select>` native). Guest add-cart (không discount_code) thành công không cần
+login.
+
+### Gift wrap (6 case)
+
+| # | Tên test | Kịch bản | Kỳ vọng chính |
+|---|---|---|---|
+| 1 | should render both giftbox options enabled for an in-stock gift product | Mở sản phẩm giftbox (`4524785596955`), mở pulldown | 2 option `ボックスなし`/`ボックスあり` hiện, không option nào bị `.disabled` (box SKU còn hàng) |
+| 2 | should reflect the chosen giftbox option in the pulldown trigger | Chọn `ボックスあり` | Trigger hiển thị `ボックスあり` |
+| 3 | should render selectable noshi options for a noshi-eligible product | Mở sản phẩm noshi (`4300515202600`) | Pulldown có `包装なし` + >1 option, chọn được option thứ 2 |
+| 4 | should show the noshi icon only for a noshi-eligible product | So sánh sản phẩm có noshi (`4300515202600`) vs không noshi (`2340000000009`) | Icon `包装・のし対象` (`.product-information__gift`) hiện với sản phẩm noshi; **không** hiện với sản phẩm không noshi |
+| 5 🔥 | should add to cart after choosing a giftbox option as a guest | Guest chọn `ボックスあり` rồi add | Panel `カートに追加されました` hiện |
+| 6 | should add to cart after choosing a noshi option as a guest | Guest chọn option noshi rồi add | Panel xác nhận hiện |
+
+## components.spec.ts
+
+Spec: [tests/e2e/product-detail/components.spec.ts](../../tests/e2e/product-detail/components.spec.ts)
+
+Các thành phần phụ: View History, C04 Related Content, trạng thái floating button. View History &
+C04 do script ngoài / data async render, nên assert phòng thủ (`test.skip` khi vắng) thay vì giả định
+luôn có.
+
+### Components (4 case)
+
+| # | Tên test | Kịch bản | Kỳ vọng chính |
+|---|---|---|---|
+| 1 | should render C04 related content with navigable links when present | Mở sản phẩm; nếu `.relevant-contents` render | Heading `関連コンテンツ` + link card có href thật (skip nếu sản phẩm không có related content) |
+| 2 | should list a previously viewed product ... in view history | Mở sản phẩm A rồi mở sản phẩm B (cookie ghi khi rời trang A) | View History (`.history_component .sec_history`) hiện A (`img[alt="A"]`), **không** hiện B; click A điều hướng về A (skip nếu widget ngoài không render) |
+| 3 | should show an enabled add-to-cart floating state on an in-stock product | Mở sản phẩm còn hàng | Floating button hiện `カートに入れる`, enabled, không có class `button--tertiary` |
+| 4 | should show the restock floating state on an out-of-stock product | Mở sản phẩm hết hàng (`2026101604000`) | Floating button hiện `再入荷お知らせ` |
+
+## Ghi chú / cần lưu ý
+
+- **Chạy trên môi trường thật (`dev.menu.starbucks.co.jp`), phụ thuộc dữ liệu catalog thật** — không
+  dùng fixture/mock. Test tới sản phẩm qua card đầu tiên của `/search`, nên loại sản phẩm không cố
+  định giữa các lần chạy.
+- **Case 2 (tax notice) có phụ thuộc dữ liệu ngầm:** ghi chú thuế chỉ render khi
+  `v-if="isPriceInVatExist"`. Hiện pass ổn định vì card đầu tiên của `/search` có giá VAT, nhưng nếu
+  catalog thay đổi có thể cần điều hướng theo category cụ thể để đảm bảo. (Đã flag cho `/review-test`.)
+- **Case 3 và 8 dùng `test.skip` runtime có chủ đích:** carousel ảnh chỉ điều hướng được khi sản phẩm
+  có >1 ảnh; carousel sản phẩm liên quan (`C55`) không phải sản phẩm nào cũng render. Khi không thoả
+  điều kiện, test skip thay vì assert sai — không phải bug.
+- **Review summary chỉ hiển thị cho category `beans`/`tealeaf`/`tumblermug`/`goods`/`brewing`, KHÔNG
+  có ở beverage** — nên case 5 và 7 điều hướng từ `?category_code=tumblermug`.
+- Hai lần fail rời rạc khi chạy lặp là **timeout điều hướng/khởi tạo context** khi chạy 4 worker local
+  với staging bị nghẽn (không phải fail assertion). Chạy kiểu CI (2 worker, `retries: 2`) pass toàn bộ.
+
+**cart.spec.ts:**
+- **Phụ thuộc các mã sản phẩm staging đã ghim** (`productDetailData.products`) — đều là fixture
+  `FrontEnd Only` / `GTest_` / `BO_UT_Test` / hàng thật đã verify (số SKU, còn hàng, cờ quà, không
+  Gold, không custom-bottle/personalize ở dòng được add). Nếu 1 fixture bị seed lại → test đỏ, chỉ cần
+  đổi mã trong `product-detail.data.ts`.
+- **Select ở thân trang KHÁC select ở overlay:** thân trang (`ItemC20C21`) dùng `CustomSelect` (widget
+  JS, không phải `<select>` native → `selectOption()` không chạy; phải click trigger + option span).
+  Component `CustomSelectComponent` scope theo `.custom-select-wrap` để không đụng overlay.
+- Ở Batch 2, overlay `商品タイプを選択` dùng dòng SKU inline thay thế; overlay được test trực tiếp ở
+  Batch 3 (xem dưới).
+- **Gift-box/noshi chỉ render khi SKU quà còn hàng** (`isShowAddCartOptions`) — mã ghim đã chọn SKU
+  còn hàng; sản phẩm có SKU quà hết hàng sẽ không render select.
+- Case 2 & 4 ghi thật vào giỏ hàng staging (dưới guest session dùng 1 lần), không cần dọn dẹp.
+
+**cta-states.spec.ts:**
+- **Mở overlay phải scroll xuống cuối trang trước khi click** nút floating: nút `position: fixed` bị
+  các dòng cart inline chặn pointer ở đầu trang; scroll xuống cuối mới click được → overlay mở
+  (`.float-product-selection.show`). Đây là mấu chốt khiến overlay test được (Batch 2 đã bỏ qua vì lý
+  do này).
+- **CTA Gold hiện sau lời gọi async `/skus/user-info`** — assert bằng `expect` auto-retry, không phải
+  render đầu. Guest trên sản phẩm Gold → `ログインして注文`; `Gold会員向け` (đã login, không phải
+  member) cần auth → chưa test.
+- Sản phẩm dùng cho overlay/multi-SKU (`4524785629905`) là **non-Gold**: dòng 0 là `カートに入れる`
+  (add được), dòng 1 là `名入れする` (personalize). Sản phẩm Gold thì guest không bao giờ thấy
+  `カートに入れる` nên không add qua overlay được.
+
+**eticket.spec.ts:**
+- **Phụ thuộc coupon `discount_code=884` (`Birthday Reward`)** + sản phẩm `3450000000003` — verify
+  live trước mỗi lần chạy; coupon có thể hết hạn → khi đó `ticketKindName` rỗng và test đỏ.
+- **Add-cart có discount_code đi nhánh khác** add-cart thường: gọi `callApiCheckIsLogin` trước; guest
+  → redirect **cross-domain** sang `login2.starbucks.co.jp` (không phải path nội bộ) → assertion cho
+  phép cả host ngoài.
+- Sản phẩm eTicket ghim (`LTest_Product Normal 003`) **không có ảnh** → test display chỉ assert tên +
+  giá; coverage carousel đã có ở `display.spec.ts`.
+
+**gift-wrap.spec.ts:**
+- Giftbox pulldown chỉ render 2 option cố định (`ボックスなし`/`ボックスあり`); noshi option là
+  **data-driven** (đọc động qua `optionTexts()`, chọn option[1]) vì text noshi thay đổi theo sản phẩm.
+- Icon Noshi (`.product-information__gift` + `包装・のし対象`) do `gift_type_3` `.some()` toàn SKU +
+  `wrappingStatus===1` — khác với pulldown noshi.
+- **giftbox-inventory=0 (disable `ボックスあり`) KHÔNG test được**: box SKU (`4524785459915`) dùng chung,
+  luôn còn 9989 hàng → option không bao giờ `.disabled`.
+
+**components.spec.ts:**
+- **View History do script ngoài `item-history.js` render (async, opaque)** — mount `.history_component`
+  là Vue nhưng nội dung bên trong (`.sec_history`, card `div.cursor-pointer`, `img[alt=itemCode]`) do
+  script ngoài dựng. Test skip runtime nếu widget không render trong timeout. Card điều hướng bằng JS
+  click (không có `<a href>`) → assert qua URL đổi.
+- View History loại trừ sản phẩm hiện tại (code không nằm trong list); cookie ghi khi rời trang
+  (`pagehide`), nên phải mở A → mở B mới thấy A.
+- C04 render có điều kiện (`relatedContents?.length`) → skip nếu vắng. C04 là `<a href>` thật (điều
+  hướng được), khác C55 (JS click).
+
+- **Chưa cover (batch sau):** add-to-cart lỗi API/retry (`ErrorDialog`), CTA `Gold会員向け` (login,
+  không phải member — cần auth), **lottery** (không có fixture còn trong window trên staging — cái tìm
+  được đã hết hạn 2024), **eTicket/wrap các case cần login** (add-cart success + quick-cart,
+  token/session expired, logout — ID-0028+/ID-0068/0070), **giftbox-inventory=0 disable** (box SKU
+  dùng chung luôn còn hàng), **18-option noshi** (không có fixture), **Partner giftbox/noshi**
+  (`/partner` trả 401 với guest), **MOP/C03/C29 internals** (script ngoài/async), favorite (cần auth),
+  biến thể preview (`/preview/{code}`), vị trí sticky của `FloatingCart` trên mobile.
