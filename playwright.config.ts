@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-import { env } from './src/config/env';
+import { AUTH_STATE_PATH, env } from './src/config/env';
 
 const browserUse = {
   ...devices['Desktop Chrome'],
@@ -10,30 +10,58 @@ const browserUse = {
 const projects = env.crossBrowser
   ? [
       {
+        name: 'setup',
+        testMatch: '**/auth/auth.setup.ts',
+      },
+      {
         name: 'chromium',
-        use: {
-          ...browserUse,
-        },
+        use: { ...browserUse },
+        testIgnore: ['**/*.auth.spec.ts'],
+      },
+      {
+        name: 'chromium:auth',
+        use: { ...browserUse, storageState: AUTH_STATE_PATH },
+        testMatch: '**/*.auth.spec.ts',
+        dependencies: ['setup'],
       },
       {
         name: 'firefox',
-        use: {
-          ...devices['Desktop Firefox'],
-        },
+        use: { ...devices['Desktop Firefox'] },
+        testIgnore: ['**/*.auth.spec.ts'],
+      },
+      {
+        name: 'firefox:auth',
+        use: { ...devices['Desktop Firefox'], storageState: AUTH_STATE_PATH },
+        testMatch: '**/*.auth.spec.ts',
+        dependencies: ['setup'],
       },
       {
         name: 'webkit',
-        use: {
-          ...devices['Desktop Safari'],
-        },
+        use: { ...devices['Desktop Safari'] },
+        testIgnore: ['**/*.auth.spec.ts'],
+      },
+      {
+        name: 'webkit:auth',
+        use: { ...devices['Desktop Safari'], storageState: AUTH_STATE_PATH },
+        testMatch: '**/*.auth.spec.ts',
+        dependencies: ['setup'],
       },
     ]
   : [
       {
+        name: 'setup',
+        testMatch: '**/auth/auth.setup.ts',
+      },
+      {
         name: 'chromium',
-        use: {
-          ...browserUse,
-        },
+        use: { ...browserUse },
+        testIgnore: ['**/*.auth.spec.ts'],
+      },
+      {
+        name: 'chromium:auth',
+        use: { ...browserUse, storageState: AUTH_STATE_PATH },
+        testMatch: '**/*.auth.spec.ts',
+        dependencies: ['setup'],
       },
     ];
 
@@ -58,7 +86,7 @@ export default defineConfig({
     headless: env.headless,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    video: env.videoMode,
     actionTimeout: env.actionTimeoutMs,
     navigationTimeout: env.navigationTimeoutMs,
     ignoreHTTPSErrors: env.ignoreHttpsErrors,

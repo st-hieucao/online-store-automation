@@ -31,13 +31,19 @@ const envSchema = z.object({
   CROSS_BROWSER: z
     .enum(['true', 'false'])
     .default(process.env.CI === 'true' ? 'true' : 'false'),
+  VIDEO_MODE: z.enum(['off', 'on', 'retain-on-failure', 'on-first-retry']).default('retain-on-failure'),
   TEST_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
   EXPECT_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
   ACTION_TIMEOUT_MS: z.coerce.number().int().positive().default(15_000),
   NAVIGATION_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
+  AUTH_LOGIN_URL: z.string().url().optional(),
+  AUTH_USERNAME: z.string().optional(),
+  AUTH_PASSWORD: z.string().optional(),
 });
 
 const parsedEnv = envSchema.parse(process.env);
+
+export const AUTH_STATE_PATH = '.auth/user.json';
 
 export const env = {
   testEnv: TEST_ENV,
@@ -46,9 +52,15 @@ export const env = {
   headless: parsedEnv.HEADLESS === 'true',
   ignoreHttpsErrors: parsedEnv.IGNORE_HTTPS_ERRORS === 'true',
   crossBrowser: parsedEnv.CROSS_BROWSER === 'true',
+  videoMode: parsedEnv.VIDEO_MODE,
   testTimeoutMs: parsedEnv.TEST_TIMEOUT_MS,
   expectTimeoutMs: parsedEnv.EXPECT_TIMEOUT_MS,
   actionTimeoutMs: parsedEnv.ACTION_TIMEOUT_MS,
   navigationTimeoutMs: parsedEnv.NAVIGATION_TIMEOUT_MS,
   isCI: process.env.CI === 'true',
+  auth: {
+    loginUrl: parsedEnv.AUTH_LOGIN_URL,
+    username: parsedEnv.AUTH_USERNAME,
+    password: parsedEnv.AUTH_PASSWORD,
+  },
 } as const;

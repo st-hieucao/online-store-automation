@@ -49,35 +49,80 @@ installed, test commands will **hang** (not error out) while trying to launch th
 install Google Chrome, or remove the `BROWSER_CHANNEL` line from `.env` to use the bundled Chromium
 instead (already downloaded by `pnpm exec playwright install`).
 
-## Main scripts
+## Running tests
+
+Every run is a combination of two independent choices — **which environment** and **which mode**.
+The `package.json` scripts give dedicated shortcuts for environment; mode is mostly orthogonal, so
+combine it with env vars / `--` args as needed (see examples below).
+
+### By environment — which `.env` file(s) load
+
+`src/config/env.ts` resolves `TEST_ENV` (default `local`) and loads env files in this order:
+
+| Command | `TEST_ENV` | Loads |
+|---|---|---|
+| `pnpm test` | *(unset → defaults to `local`)* | `.env` only |
+| `pnpm test:local` | `local` | `.env` only — behaves the same as `pnpm test` unless your shell already has a different `TEST_ENV` set |
+| `pnpm test:stg` | `stg` | `.env`, then `.env.stg` |
+| `pnpm test:prod` | `prod` | `.env`, then `.env.prod` |
+
+**Gotcha, verified against `dotenv`'s actual load order:** `.env` always loads *first*, with
+`override: false` — so any key already present in `.env` (or already set in your shell) is **not**
+overridden by `.env.stg`/`.env.prod`; only keys *missing* from `.env` get filled in from the
+environment-specific file. In practice: keep `.env.stg`/`.env.prod` to just the keys that actually
+need to differ (typically `BASE_URL`) — don't duplicate keys already in `.env`, or the override
+silently does nothing.
+
+### By mode — what/how it runs
+
+| Command | What it does |
+|---|---|
+| `pnpm test` | Runs everything, headless, chromium only |
+| `pnpm test:ui` | Opens Playwright's UI Mode (pick/run/inspect tests interactively) |
+| `pnpm test:headed` | Same as `test`, but with a visible browser window |
+| `pnpm test:debug` | Opens the Playwright Inspector, pauses at each step |
+| `pnpm test:list` | Lists matching tests without running them |
+| `pnpm test:smoke` | Filters to tests tagged `@smoke` (`--grep @smoke`) — the fast, core-flow subset |
+| `pnpm test:cross-browser` | Sets `CROSS_BROWSER=true` → also runs the Firefox/WebKit (+ their `:auth`) projects |
+
+These combine freely with the environment scripts — e.g. `TEST_ENV=stg pnpm test:headed` runs headed
+mode against staging. There's no dedicated script for every combination.
+
+### Auth-gated tests
+
+`playwright.config.ts` defines a `setup` project (`tests/e2e/auth/auth.setup.ts`) that every
+`*.auth.spec.ts` file depends on via the `chromium:auth` project (and `firefox:auth`/`webkit:auth`
+under cross-browser). If **any** test your command selects — including via `--grep`/`test:smoke` —
+lives in a `*.auth.spec.ts` file, Playwright also runs `setup` first, which requires
+`AUTH_LOGIN_URL`, `AUTH_USERNAME`, and `AUTH_PASSWORD` to be set in `.env`. Without them, `setup`
+fails immediately and every dependent test is skipped ("did not run") — this is why `pnpm test:smoke`
+can fail on a fresh checkout even if the `@smoke` tests you actually care about don't need auth.
+
+### Filtering to specific files or scenarios
+
+Pass a path or `--grep` after `--`:
 
 ```bash
-pnpm test
-pnpm test:ui
-pnpm test:headed
-pnpm test:debug
-pnpm test:smoke        # only runs tests tagged @smoke (--grep @smoke)
-pnpm test:list
-pnpm test:cross-browser
-pnpm typecheck
-pnpm lint
-pnpm format
-pnpm report
+pnpm test:local -- tests/e2e/search/
+pnpm test:local -- --grep "empty state"
 ```
 
-## Env strategy
+### Video evidence
 
-- `.env`: local default
-- `.env.stg`: staging
-- `.env.prod`: production
-- `CROSS_BROWSER=true`: enables Chromium + Firefox + WebKit
+- `VIDEO_MODE`: `off` | `on` | `retain-on-failure` (default) | `on-first-retry` — set to `on` to keep
+  a video for every test (pass or fail), e.g. as evidence for QA sign-off; default only keeps videos
+  for failing tests. Videos live under `test-results/`, and are linked from the HTML report
+  (`pnpm report`).
 
-Run per environment:
+### Everything else
 
 ```bash
-pnpm test:local
-pnpm test:stg
-pnpm test:prod
+pnpm typecheck
+pnpm lint          # pnpm lint:fix to auto-fix
+pnpm format        # pnpm format:check to only check
+pnpm report        # open the last run's HTML report
+pnpm pw:install    # install Playwright's bundled browsers
+pnpm pw:codegen    # record actions into code
 ```
 
 ## Test-writing workflow
