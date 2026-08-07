@@ -236,6 +236,29 @@ Two more live-data behaviors worth knowing before writing more sidebar tests:
 - [ ] Feature disabled (`hide_feature_favorite`): favorite button doesn't render — needs a separate
       test with the corresponding env config toggled, if staging supports it.
 
+### 4.11 API Interface (`/api/v1/*` — public Item endpoints) — P1
+
+HTTP-level tests (no browser) against the public `v1` API group (`routes/api.php` → `Api\ItemController`).
+Each case asserts **200 + correct response shape + primary-data fields present + body stable across
+repeated calls** (deep-equal, excluding the volatile `current_timestamp`). All endpoints are public
+(no auth). `list`/`list_other`/`preview/*` require a valid, non-expired `category_code` (else 404).
+See `tests/e2e/api/item-api.spec.ts` (client `tests/api/item-api.client.ts`, data
+`tests/test-data/api-item.data.ts`).
+
+- [x] ID-00138 `GET /list` single param (`category_code`).
+- [x] ID-00139 `GET /list` multiple params (`category_code` + `brand_code`).
+- [x] ID-00140 `GET /preview/list` multiple params — items carry `start_timestamp`/`end_timestamp`.
+- [x] ID-00141 `GET /list_other` single param.
+- [x] ID-00142 `GET /list_other` multiple params (`+ inventory_quantity`).
+- [x] ID-00143 `GET /preview/list_other` multiple params (`+ online_store`; preview data has no live
+      inventory, so `inventory_quantity` empties it).
+- [x] ID-00144 `GET /skus` single jancode (`sku_code[]`).
+- [x] ID-00145 `GET /skus` multiple jancodes.
+- [x] ID-00146 `GET /pairing` by `category` — returns a **bare array** (no `count`/`item` wrapper).
+- Note: the sheet's generic field names map to real keys — `name`→`item_name`, `price`→`price_in_vat`,
+  no `jan_code` (it's `item_code`/`sku_code`), `image`→`image_url` (list/preview-list) or
+  `image_url_grid` (list_other/skus/pairing). CloudFront needs a browser User-Agent (client sets it).
+
 ## 5. Additional fixtures / test-data needed
 
 - `tests/fixtures/auth.fixture.ts` — a fixture that provides an already-logged-in `page`, reusing a
