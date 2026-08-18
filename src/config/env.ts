@@ -39,6 +39,9 @@ const envSchema = z.object({
   AUTH_LOGIN_URL: z.string().url().optional(),
   AUTH_USERNAME: z.string().optional(),
   AUTH_PASSWORD: z.string().optional(),
+  REVIEW_PRODUCT_CODE_WITH_REVIEWS: z.string().optional(),
+  REVIEW_PRODUCT_CODE_NO_REVIEWS: z.string().optional(),
+  REVIEW_EDIT_PATH: z.string().optional(),
   PARTNER_BASIC_USERNAME: z.string().optional(),
   PARTNER_BASIC_PASSWORD: z.string().optional(),
 });
@@ -64,6 +67,11 @@ export const env = {
     loginUrl: parsedEnv.AUTH_LOGIN_URL,
     username: parsedEnv.AUTH_USERNAME,
     password: parsedEnv.AUTH_PASSWORD,
+  },
+  review: {
+    productCodeWithReviews: parsedEnv.REVIEW_PRODUCT_CODE_WITH_REVIEWS,
+    productCodeNoReviews: parsedEnv.REVIEW_PRODUCT_CODE_NO_REVIEWS,
+    editPath: parsedEnv.REVIEW_EDIT_PATH,
   },
   partnerHttpBasic:
     parsedEnv.PARTNER_BASIC_USERNAME && parsedEnv.PARTNER_BASIC_PASSWORD
