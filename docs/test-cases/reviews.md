@@ -1,82 +1,121 @@
-# Test Cases — reviews
+# Test cases — Reviews
+
+Tóm tắt test case tự động (Playwright) cho tính năng Review List và Review Create/Edit, để verify
+nhanh không cần đọc code. Cập nhật bởi skill `/summarize-test` — mỗi khi thêm/sửa test trong feature
+này, tìm file này để cập nhật thay vì tạo file mới. Không có route đơn lẻ (gồm `/{jan_code}/review`
+và `/{jan_code}/review/create`, `/{jan_code}/review/{code}/edit`) nên tiêu đề không kèm route.
 
 ## review-list.spec.ts
 
-> All tests in the "has reviews" group require `REVIEW_PRODUCT_CODE_WITH_REVIEWS` in `.env`; the "no reviews" group additionally requires `REVIEW_PRODUCT_CODE_NO_REVIEWS`. Both groups skip gracefully when their respective env var is absent.
+Spec: [tests/e2e/reviews/review-list.spec.ts](../../tests/e2e/reviews/review-list.spec.ts)
+Page/Component Object: [tests/pages/review-list.page.ts](../../tests/pages/review-list.page.ts), [tests/pages/components/review-item.component.ts](../../tests/pages/components/review-item.component.ts), [tests/pages/components/sort-select.component.ts](../../tests/pages/components/sort-select.component.ts)
 
-### Review List — has reviews
+### Has reviews (2 case)
 
-| # | Kịch bản | Kỳ vọng chính |
-|---|---|---|
-| 1 | Navigate to the review list of a product with reviews. | Page title equals "レビュー一覧"; product name and image are visible; rating stars visible; first review item has non-empty date, title, content, and reviewer. |
-| 2 | Navigate to a product with a long review whose content is truncated; click "もっと見る" on the first item (skips if no truncation present). | Review item's bounding box height increases after clicking the button. |
-| 3 | Navigate to the review list; change the sort dropdown to "参考になった順", then to "評価が高い順". | URL `sort` query param updates to `helpful` then `rating_high` after each selection. |
-| 4 | Navigate to a product with multiple pages; observe page 1 state. | Pagination is visible; previous button is disabled; current page indicator is `1`. |
-| 5 | Navigate directly to the last page of reviews. | Current page indicator matches the last page number; next/last button is disabled; at least one review item is visible. |
-| 6 | Navigate to page 2 of reviews; click the previous-page button. | Current page indicator becomes `1`. |
+| # | Tên test | Kịch bản | Kỳ vọng chính |
+|---|---|---|---|
+| 1 🔥 | should render page title, product info, rating and at least one review item | Mở trang list review của sản phẩm có review | Tiêu đề trang = "レビュー一覧"; tên & ảnh sản phẩm visible; rating stars visible; review item đầu tiên có ngày/tiêu đề/nội dung/reviewer không rỗng |
+| 2 | "もっと見る" button expands truncated review content | Mở trang có review dài bị cắt ngắn, click "もっと見る" trên item đầu tiên | Chiều cao khung review item tăng lên sau khi click |
 
-### Review List — post button / Like unauthenticated redirect
+### Sort (1 case)
 
-| # | Kịch bản | Kỳ vọng chính |
-|---|---|---|
-| 7 | Open the review list without auth; click "レビューを投稿する". | URL changes away from the `/{code}/review` path (redirected to login/barista page). |
-| 8 | Open the review list without auth; click Like on the first review item. | URL changes away from the `/{code}/review` path. |
+| # | Tên test | Kịch bản | Kỳ vọng chính |
+|---|---|---|---|
+| 3 🔥 | should update sort URL param when changing sort order | Đổi sort dropdown sang "参考になった順", rồi sang "評価が高い順" | `sort` param cập nhật thành `helpful` rồi `rating_high` sau mỗi lần chọn |
 
-### Review List — no reviews
+### Pagination (3 case)
 
-| # | Kịch bản | Kỳ vọng chính |
-|---|---|---|
-| 9 | Navigate to the review list of a product with no approved reviews. | "最初のレビューを書いてみませんか？"-like text is visible; sort select is not rendered; pagination is not rendered; "投稿する" (post) link is visible. |
+| # | Tên test | Kịch bản | Kỳ vọng chính |
+|---|---|---|---|
+| 4 | should disable prev button on page 1 | Mở trang có nhiều trang review, xem trạng thái trang 1 | Pagination visible; nút prev disabled; chỉ số trang hiện tại = 1 |
+| 5 | should navigate to the next page and disable next button on last page | Vào thẳng trang cuối cùng | Chỉ số trang khớp trang cuối; nút next disabled; có ít nhất 1 review item visible |
+| 6 | should move to previous page when clicking prev button | Vào trang 2, click nút prev | Chỉ số trang hiện tại trở thành 1 |
 
----
+### Post button — unauthenticated redirect (2 case)
+
+| # | Tên test | Kịch bản | Kỳ vọng chính |
+|---|---|---|---|
+| 7 🔥 | should redirect to login when unauthenticated user clicks "レビューを投稿する" | Mở review list khi chưa login, click "レビューを投稿する" | URL rời khỏi path `/{code}/review` (redirect sang login/barista) |
+| 8 | should redirect to login when unauthenticated user clicks Like | Mở review list khi chưa login, click Like trên review item đầu tiên | URL rời khỏi path `/{code}/review` |
+
+### No reviews (1 case)
+
+| # | Tên test | Kịch bản | Kỳ vọng chính |
+|---|---|---|---|
+| 9 | should show empty state text and hide sort/pagination | Mở review list của sản phẩm chưa có review nào được duyệt | Text kiểu "最初のレビューを書いてみませんか？" visible; sort select không render; pagination không render; link "投稿する" visible |
+
+> Nhóm "has reviews" cần `REVIEW_PRODUCT_CODE_WITH_REVIEWS` trong `.env`; nhóm "no reviews" cần thêm
+> `REVIEW_PRODUCT_CODE_NO_REVIEWS`. Cả 2 nhóm skip gọn nếu thiếu biến tương ứng. Test #4–6 skip nếu
+> sản phẩm chỉ có 1 trang review. Test #2 skip nếu review đầu tiên không đủ dài để bị truncate.
+
+🔥 = tagged `@smoke` (chạy trong `pnpm test:smoke`; các test khác trong file vẫn tính `@regression`).
 
 ## review-list.auth.spec.ts
 
-> Requires auth storageState. Skips without `REVIEW_PRODUCT_CODE_WITH_REVIEWS`.
+Spec: [tests/e2e/reviews/review-list.auth.spec.ts](../../tests/e2e/reviews/review-list.auth.spec.ts)
+Page/Component Object: [tests/pages/review-list.page.ts](../../tests/pages/review-list.page.ts), [tests/pages/components/review-item.component.ts](../../tests/pages/components/review-item.component.ts)
 
-### Review List — Like (authenticated)
+### Like (authenticated) (1 case)
 
-| # | Kịch bản | Kỳ vọng chính |
-|---|---|---|
-| 10 | Logged-in user opens the review list; clicks Like on the first item, then clicks Like again. | Like count increments by 1 after the first click (optimistic update); `prevent-click` class disappears after API round-trip; count decrements back to the initial value after the second click; `prevent-click` clears again. |
+| # | Tên test | Kịch bản | Kỳ vọng chính |
+|---|---|---|---|
+| ~~1~~ | ~~should toggle like count when authenticated user clicks Like then Unlike~~ | ~~User đã login mở review list, click Like trên item đầu tiên rồi click lại~~ | ~~Tắt: `test.skip(...)` trực tiếp trong code, không có comment giải thích lý do — nên hỏi tác giả trước khi bật lại~~ |
 
----
+> Yêu cầu auth storageState, skip nếu thiếu `REVIEW_PRODUCT_CODE_WITH_REVIEWS`. Like-count assertions
+> (test này và tương đương ở C46 — xem `product-detail.md`) dùng kiểm tra tương đối ±1 thay vì hardcode
+> con số, vì user khác có thể like/unlike cùng sản phẩm song song.
 
 ## review-create.auth.spec.ts
 
-> All tests require auth storageState. Create/edit tests skip without `REVIEW_PRODUCT_CODE_WITH_REVIEWS` or `REVIEW_EDIT_PATH` respectively.
+Spec: [tests/e2e/reviews/review-create.auth.spec.ts](../../tests/e2e/reviews/review-create.auth.spec.ts)
+Page/Component Object: [tests/pages/review-form.page.ts](../../tests/pages/review-form.page.ts)
 
-### Create Review flow
+### Create Review flow (8 case)
 
-| # | Kịch bản | Kỳ vọng chính |
-|---|---|---|
-| 11 | Navigate to `/{code}/review/create` as a logged-in user. | Page title is "レビューを投稿する"; star rating input, title textarea, content textarea, and nickname section are all visible. |
-| 12 | Arrive at the create page without filling anything. | Submit button is disabled. |
-| 13 | Fill title and content but leave stars unselected. | Submit button remains disabled. |
-| 14 | Select 5 stars, fill valid content, but enter a title longer than 50 characters. | Submit button is disabled; `titleCharCount()` reports a value greater than 50. |
-| 15 | Select 5 stars, fill a valid title, but enter content shorter than 25 characters. | Submit button is disabled. |
-| 16 | Select 5 stars, fill a valid title, but enter content longer than 400 characters. | Submit button is disabled. |
-| 17 | Fill the form fully with valid data (5 stars, valid title and content); click "内容確認へ". | Submit button is enabled before click; URL gains `#confirm`; confirm step shows the correct title heading and echoes the entered title and content. |
-| 18 | Fill the form with valid data, advance to the confirm step; click "入力画面へ戻る". | URL no longer contains `#confirm` (returns to the form step). |
+| # | Tên test | Kịch bản | Kỳ vọng chính |
+|---|---|---|---|
+| 1 🔥 | should show review form with correct title on create page | Mở `/{code}/review/create` khi đã login | Tiêu đề trang = "レビューを投稿する"; input sao rating, textarea tiêu đề, textarea nội dung, phần nickname đều visible |
+| 2 | submit button is disabled before filling the form | Vào trang create, chưa điền gì | Nút submit disabled |
+| 3 | submit button remains disabled when no stars are selected | Điền tiêu đề + nội dung nhưng chưa chọn sao | Nút submit vẫn disabled |
+| 4 | submit button is disabled when title exceeds 50 characters | Chọn 5 sao, điền nội dung hợp lệ, nhưng tiêu đề dài hơn 50 ký tự | Nút submit disabled; `titleCharCount()` trả về giá trị > 50 |
+| 5 | submit button is disabled when content is shorter than 25 characters | Chọn 5 sao, điền tiêu đề hợp lệ, nhưng nội dung ngắn hơn 25 ký tự | Nút submit disabled |
+| 6 | submit button is disabled when content exceeds 400 characters | Chọn 5 sao, điền tiêu đề hợp lệ, nhưng nội dung dài hơn 400 ký tự | Nút submit disabled |
+| 7 🔥 | happy path: valid form → confirm screen shows entered data correctly | Điền form đầy đủ hợp lệ (5 sao, tiêu đề + nội dung hợp lệ), click "内容確認へ" | Nút submit enabled trước khi click; URL có thêm `#confirm`; bước confirm hiện đúng heading + đúng tiêu đề/nội dung đã nhập |
+| 8 | "入力画面へ戻る" from confirm returns to the form URL | Điền form hợp lệ, qua bước confirm, click "入力画面へ戻る" | URL không còn `#confirm` (quay lại bước form) |
 
-### Edit Review flow
+### Edit Review flow (2 case)
 
-| # | Kịch bản | Kỳ vọng chính |
-|---|---|---|
-| 19 | Navigate to a known edit URL (`REVIEW_EDIT_PATH`) as a logged-in user. | Page title is "レビュー編集"; title textarea is pre-filled with existing data; content textarea is pre-filled with existing data. |
-| 20 | Navigate to the edit page (pre-filled); click "内容確認へ" immediately. | Submit button is already enabled (existing data satisfies validation); confirm step renders with title "レビュー内容確認". |
+| # | Tên test | Kịch bản | Kỳ vọng chính |
+|---|---|---|---|
+| 9 | should pre-fill the form with existing review data on the edit page | Mở URL edit đã biết (`REVIEW_EDIT_PATH`) khi đã login | Tiêu đề trang = "レビュー編集"; textarea tiêu đề và nội dung đã điền sẵn dữ liệu cũ |
+| 10 🔥 | should show "レビュー内容確認" on confirm step for edit | Vào trang edit (đã điền sẵn), click "内容確認へ" ngay | Nút submit đã enabled sẵn (dữ liệu cũ hợp lệ); bước confirm hiện tiêu đề "レビュー内容確認" |
 
-### Create Review — no nickname
+### Create Review — no nickname (1 case)
 
-| # | Kịch bản | Kỳ vọng chính |
-|---|---|---|
-| 21 | Navigate to the create page as a logged-in user with no nickname registered (skips if the test account has a nickname). | Submit button is disabled; nickname registration link is visible. |
+| # | Tên test | Kịch bản | Kỳ vọng chính |
+|---|---|---|---|
+| 11 | should disable submit and show nickname register link when account has no nickname | Mở trang create bằng account chưa có nickname | Nút submit disabled; link đăng ký nickname visible |
 
----
+> Tất cả test yêu cầu auth storageState; test tạo/sửa skip nếu thiếu `REVIEW_PRODUCT_CODE_WITH_REVIEWS`
+> hoặc `REVIEW_EDIT_PATH` tương ứng. Test #11 skip nếu account test đang có sẵn nickname. Chuỗi
+> confirm → submit thật → complete **cố tình không tự động hoá** để tránh tích luỹ review rác trên
+> staging — trang Complete (`/review/create/complete`, tiêu đề "レビュー投稿完了") cần verify thủ công.
 
-**Notes**
+🔥 = tagged `@smoke` (chạy trong `pnpm test:smoke`; các test khác trong file vẫn tính `@regression`).
 
-- Tests 4–6 (pagination) and test 10 (auth Like) skip when the product has only one page of reviews.
-- Test 2 ("もっと見る") skips if the first review item on the live product fits without truncation — this is a content-dependent state.
-- Test 18 (edit Like) and the full confirm → submit → complete sequence are intentionally NOT automated to avoid accumulating test reviews on staging. The complete page (`/review/create/complete`, title "レビュー投稿完了") should be verified manually.
-- Like-count assertions (tests 10, and the C46 equivalent in `product-detail.md`) use relative ±1 checks rather than hardcoded counts, since other users may like/unlike the same review concurrently.
+## Chưa cover / ngoài phạm vi
+
+- Report (báo cáo review) — chưa có test nào, cả khi guest lẫn khi đã login (mở modal, submit).
+- Avatar hiển thị trên review item — chỉ assert chung "reviewer" không rỗng, chưa assert riêng ảnh avatar.
+- "Post review" khi ĐÃ login → điều hướng đúng tới `/create` — hiện chỉ test hành vi guest (redirect
+  khi chưa login), chưa test click thật khi đã login.
+- Responsive: layout showcase sản phẩm đổi vị trí (trái/trên) theo breakpoint — chưa test.
+- Review Create/Edit: validation tiêu đề/nội dung từ chối emoji, ký tự đặc biệt, xuống dòng — mới
+  test giới hạn độ dài (min/max), chưa test riêng các ký tự này.
+- "Back to edit" giữ nguyên dữ liệu đã nhập — mới assert URL quay lại bước form, chưa assert dữ liệu
+  form được giữ nguyên.
+- Submit thật (confirm → complete, cả tạo mới và sửa) — chủ đích không tự động hoá, xem ghi chú ở
+  `review-create.auth.spec.ts` phía trên.
+- Truy cập trực tiếp `/review/create` hoặc `/review/{code}/edit` khi chưa login → redirect — chưa có
+  test riêng cho 2 route này (chỉ có test tương tự cho Review List và My Reviews).
+- Like/Unlike thật khi đã login trên Review List (test ~~1~~ ở `review-list.auth.spec.ts`) — đang tắt.

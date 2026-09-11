@@ -5,9 +5,15 @@ cross-referenced against current coverage in `online-store-automation`.
 
 ## 1. Current state
 
-Automation currently has **only 1 spec**: [tests/e2e/search/sidebar.spec.ts](../tests/e2e/search/sidebar.spec.ts)
-— testing sidebar filter behavior (desktop + mobile) on `/search`. Every other screen in
-`online-store-web` has no test coverage yet.
+Automation now covers: Search (P0, §4.1 — sidebar + search bar/sort/pagination/product card/empty
+state), E-Ticket (P1, §4.3), Partner/Roastery Search (P2, §4.4), Review List (P1, §4.5 — public +
+authenticated Like), Review Create/Edit (P1, §4.6, auth), My Reviews (P2, §4.8, auth), and the C46
+review widget embedded on Product Detail (see `docs/test-cases/product-detail.md`). See section 4
+for exact per-screen coverage and remaining gaps within each.
+
+**Still fully uncovered**: Product Detail's core purchase flow (P0 — §4.2, the biggest remaining
+gap: add-to-cart, variants, gift wrap, out-of-stock, breadcrumb, related products...), Review
+Complete (§4.7, P2), Thank You (§4.9, P2), and Favorite toggle (§4.10, P2).
 
 ## 2. Screen map (route → page component → priority)
 
@@ -44,6 +50,14 @@ Search / ETicket / PartnerSearch. Build **component objects** shared across page
 `SearchPage`, `ETicketPage`, `PartnerSearchPage` should then **compose** these components instead of
 reimplementing them. `search.page.ts` should be refactored to use `SidebarFilterComponent`
 internally (without breaking the existing spec's API).
+
+**Status**: `sidebar-filter`, `product-list`, `pagination`, `sort-select` components were all built
+and are reused correctly across `SearchPage`/`ETicketPage`/`PartnerSearchPage` (and `sort-select`/
+`pagination` further reused by `ReviewListPage`/`MyReviewsPage`). A `review-item.component.ts` was
+added later (not originally planned here) and is shared between the C46 widget and Review List.
+`breadcrumbs.component.ts` was **not** built — `PartnerSearchPage` and `ETicketPage` each implement
+their own inline `expectBreadcrumb(labels)` instead; low priority to extract now since it's only 2
+small, near-identical implementations.
 
 ## 4. Test case detail per screen
 
@@ -148,6 +162,12 @@ Two more live-data behaviors worth knowing before writing more sidebar tests:
 
 ### 4.2 Product Detail (`/{code}`) — P0
 
+**Note**: the C46 review widget embedded on this page (large categories `tumblermug`/`goods`/`brewing`)
+IS covered separately — see [tests/e2e/product-detail/{c46,c46.auth}.spec.ts](../tests/e2e/product-detail/)
+and `docs/test-cases/product-detail.md`. This partially satisfies the "Rating & review summary"
+bullet below. Everything else on this page (the actual purchase flow) remains **entirely uncovered**
+— this is the single biggest gap left in the whole plan (P0, core revenue flow).
+
 - [ ] Displays correct basic info: name, price (with tax), image carousel navigable.
 - [ ] Add to cart — single-SKU product: clicking CTA → `FloatingCart`/`QuickCart` quantity updates.
 - [ ] Add to cart — multi-variant product (C20/C21 `MultipleProduct`): select variant → select
@@ -155,7 +175,10 @@ Two more live-data behaviors worth knowing before writing more sidebar tests:
 - [ ] Add-to-cart error case (out of stock / API error): `ErrorMsg` / `ErrorDialog` show correctly,
       with retry.
 - [ ] Gift wrap / Noshi (C22): selecting a wrap option sets the correct value before adding to cart.
-- [ ] Rating & review summary render correctly (average score, 3 latest reviews) + link to Review List.
+- [ ] Rating & review summary render correctly (average score, 3 latest reviews) + link to Review
+      List — **partially covered** by the C46 tests: review-count link, "レビューを投稿する" button,
+      at least one review item, and "すべてのレビューを見る" link are all asserted; average score
+      display and the exact "3 latest reviews" count are NOT separately asserted.
 - [ ] Breadcrumb correct for the product's category.
 - [ ] Out-of-stock / not-yet-released / lottery product: CTA state changes accordingly (disabled,
       restock button...).
@@ -183,37 +206,63 @@ Two more live-data behaviors worth knowing before writing more sidebar tests:
 
 ### 4.4 Partner/Roastery Search (`/partner`, `/partner/{partner}`) — P2
 
-- [ ] `/partner/roastery` and `/partner/limited` return the correct product set per partner.
-- [ ] No sidebar filter (unlike Search) — confirm the UI doesn't render one.
-- [ ] "ROASTERY TOKYO" badge displays correctly when applicable.
-- [ ] Product card has no "custom bottle" tag (only personalization/limited/online-only).
-- [ ] Empty state when a partner has no products.
+Covered — see [tests/e2e/partner/partner-search.spec.ts](../tests/e2e/partner/partner-search.spec.ts)
+(11 tests) and `docs/test-cases/partner.md`.
+
+- [x] `/partner/roastery` and `/partner/limited` render a product list (count > 0, correct card
+      quality: names/prices/images) — **not** verified against a specific expected product set per
+      partner, just that a well-formed list renders. `/partner/limited` only checked at basic
+      presence level (1 card visible), not the same full card-quality depth as `/partner/roastery`.
+- [x] No sidebar filter (unlike Search) — confirmed absent on both partner routes.
+- [x] "ROASTERY TOKYO" badge displays correctly when applicable — assert-if-present (depends on live
+      catalog having a matching product).
+- [x] Product card has no "custom bottle" tag (only personalization/limited/online-only).
+- [ ] Empty state when a partner has no products — **not covered**, can't control live-catalog
+      product count in E2E. Also: the bare `/partner` route 404s on staging, so it isn't tested at all.
 
 ### 4.5 Review List (`/{jan_code}/review`) — P1
 
-- [ ] With reviews: list renders, avatar, rating, post date, content ("see more" link when long).
-- [ ] Sort dropdown (most helpful / newest / oldest) changes order correctly.
-- [ ] Pagination works, keeps `jan_code` in the URL.
-- [ ] No reviews: empty state + "Be the first to review" CTA.
-- [ ] "Post review" button navigates correctly to `/{jan_code}/review/create`.
-- [ ] Guest (not logged in): Like/Report buttons are disabled or redirect to login on click.
-- [ ] Logged in: Like increments the count correctly; Report opens a modal, submits successfully.
-- [ ] Responsive: product showcase layout position changes (left/top) per breakpoint.
+Covered — see [tests/e2e/reviews/{review-list,review-list.auth}.spec.ts](../tests/e2e/reviews/)
+(9 + 1 disabled tests) and `docs/test-cases/reviews.md`.
+
+- [x] With reviews: list renders, rating, post date, content ("see more" link when long). Reviewer
+      name asserted as non-empty text — no separate assertion for the avatar image specifically.
+- [x] Sort dropdown — spot-checked 2 directions (最も参考になった/helpful, 評価が高い順/rating_high),
+      not the full option list (not literally "most helpful / newest / oldest" as originally listed
+      here — the real option set differs, see `reviews.md`).
+- [x] Pagination works (prev/next disabled at boundaries, page navigation).
+- [x] No reviews: empty state text + hides sort/pagination; "post" link visible.
+- [ ] "Post review" button navigates correctly to `/{jan_code}/review/create` — only the **guest**
+      redirect-to-login behavior is tested; clicking it while logged in isn't separately verified.
+- [x] Guest (not logged in): Like redirects to login on click.
+  - [ ] Guest Report button — **not covered**, no Report test exists at all (guest or logged in).
+- [x] Logged in: Like increments the count correctly (±1 relative check) — currently `test.skip`'d
+      in code with no reason given, needs re-enabling or an explanation.
+  - [ ] Report opens a modal, submits successfully — **not covered**.
+- [ ] Responsive: product showcase layout position changes (left/top) per breakpoint — not covered.
 
 ### 4.6 Review Create/Edit (`/{jan_code}/review/create`, `/{jan_code}/review/{code}/edit`) — P1 (auth)
 
-- [ ] No nickname yet: Confirm/Submit button disabled + shows a nickname-registration link.
-- [ ] Rating validation: must select stars before Confirm.
-- [ ] Title validation: min/max length (≤50), real-time char counter, rejects emoji/special
-      chars/line breaks.
-- [ ] Content validation: 25–400 chars, real-time char counter, rejects emoji.
-- [ ] Clicking "Confirm" (valid form) → moves to the Confirm step (`#confirm`) showing the entered
+Covered — see [tests/e2e/reviews/review-create.auth.spec.ts](../tests/e2e/reviews/review-create.auth.spec.ts)
+(11 tests) and `docs/test-cases/reviews.md`.
+
+- [x] No nickname yet: Confirm/Submit button disabled + shows a nickname-registration link.
+- [x] Rating validation: must select stars before Confirm.
+- [x] Title validation: max length (>50 chars disables submit, char counter confirmed >50) —
+      **not** covered: min length, rejecting emoji/special chars/line breaks specifically.
+- [x] Content validation: length boundaries (<25 and >400 chars disable submit) — **not** covered:
+      rejecting emoji specifically.
+- [x] Clicking "Confirm" (valid form) → moves to the Confirm step (`#confirm`) showing the entered
       data correctly.
-- [ ] Clicking "Back to edit" from Confirm → returns to the Form keeping entered data.
+- [x] Clicking "Back to edit" from Confirm → returns to the Form (`#confirm` removed from URL) —
+      **not** separately verified that the previously-entered data is still there after returning.
 - [ ] Submitting at the Confirm step → navigates to the Complete page; new review appears (or is
-      pending moderation — confirm with BE).
-- [ ] Edit mode: form pre-fills correctly with the existing review data.
-- [ ] Direct access while not logged in → correct redirect flow (barista OAuth).
+      pending moderation — confirm with BE) — **deliberately not automated**, to avoid accumulating
+      test reviews on staging. Verify the Complete page manually.
+- [x] Edit mode: form pre-fills correctly with the existing review data.
+- [ ] Direct access while not logged in → correct redirect flow (barista OAuth) — **not covered**
+      for this route specifically (Review List and My Reviews each have their own guest-redirect
+      test, but Create/Edit doesn't).
 
 ### 4.7 Review Complete (`/{jan_code}/review/create/complete`) — P2 (auth)
 
@@ -221,13 +270,20 @@ Two more live-data behaviors worth knowing before writing more sidebar tests:
 
 ### 4.8 My Reviews (`/mystarbucks/review`) — P2 (auth)
 
-- [ ] "Newest"/"Oldest" tabs switch order correctly, refetch data.
-- [ ] Pagination works.
-- [ ] Edit → navigates correctly to the edit page with the right `jan_code`/`review_code`.
-- [ ] Delete → opens `ConfirmModal`, confirming deletes it → review disappears from the list +
-      success message.
-- [ ] Empty state when the user has no reviews.
-- [ ] Access while not logged in → redirect (auth middleware).
+Covered — see [tests/e2e/my-reviews/my-reviews.auth.spec.ts](../tests/e2e/my-reviews/my-reviews.auth.spec.ts)
+(25 tests) and `docs/test-cases/my-reviews.md`.
+
+- [x] "Newest"/"Oldest" tabs switch order correctly — tab switch is client-side only (both lists are
+      already loaded server-side), so there's no real "refetch" to verify, just the correct list/URL
+      swap.
+- [x] Pagination works (prev/next disabled at boundaries, page navigation, dynamic last-page).
+- [x] Edit → navigates correctly to an edit URL matching the `/review/{code}/edit` pattern.
+- [x] Delete → opens `ConfirmModal` with the correct message. **Not** covered: actually confirming
+      the delete → review disappearing + success message (commented out in code — mutates live data,
+      needs a re-seed mechanism first).
+- [ ] Empty state when the user has no reviews — **not covered**, the test account always has 150+
+      reviews.
+- [x] Access while not logged in → redirect confirmed.
 
 ### 4.9 Thank You (`/thankyou?order_id=`) — P2
 
@@ -246,31 +302,36 @@ Two more live-data behaviors worth knowing before writing more sidebar tests:
 
 ## 5. Additional fixtures / test-data needed
 
-- `tests/fixtures/auth.fixture.ts` — a fixture that provides an already-logged-in `page`, reusing a
-  `storageState` (log in once via barista OAuth in `globalSetup`, save the session, reuse it across
-  auth-gated tests — avoid running real OAuth per test). **Needs clarification with the team**:
-  is there a fixed test account on staging, and can the OAuth mechanism (redirect to another domain)
-  be mocked/bypassed for the test environment.
-- `tests/pages/product-detail.page.ts`, `review-list.page.ts`, `review-form.page.ts`,
-  `my-reviews.page.ts`, `eticket.page.ts`, `partner-search.page.ts`, `thank-you.page.ts`.
-- `tests/pages/components/*` as listed in section 3.
-- `tests/test-data/product.data.ts` — sample product codes per type (single SKU, multi-SKU, custom
-  bottle, out of stock, partner, preview).
-- `tests/test-data/review.data.ts` — valid/invalid review content (too long, emoji...), jan_codes
-  with/without existing reviews.
-- `tests/test-data/eticket.data.ts` — valid/expired discount_codes for tests.
+- ✅ Auth is solved: `tests/e2e/auth/auth.setup.ts` (a Playwright `setup` project, not the originally
+  imagined `tests/fixtures/auth.fixture.ts`) logs in once via `AUTH_LOGIN_URL`/`AUTH_USERNAME`/
+  `AUTH_PASSWORD`, saves `storageState`, and `chromium:auth`-tagged specs depend on it and reuse the
+  session — same goal as originally planned, different mechanism.
+- ✅ Built: `product-detail.page.ts`, `review-list.page.ts`, `review-form.page.ts`,
+  `my-reviews.page.ts`, `eticket.page.ts`, `partner-search.page.ts`. **Still missing**:
+  `thank-you.page.ts` (Thank You page, §4.9, not started).
+- `tests/pages/components/*` as listed in section 3 — see status note there.
+- ✅ Test-data built: `search.data.ts`, `my-reviews.data.ts`, `eticket.data.ts`, `review.data.ts`
+  (covers review content + `REVIEW_PRODUCT_CODE_WITH_REVIEWS`/`REVIEW_PRODUCT_CODE_NO_REVIEWS`/
+  `REVIEW_EDIT_PATH` env vars). **Still missing**: a dedicated `product.data.ts` for Product Detail
+  (sample product codes per type — single SKU, multi-SKU, custom bottle, out of stock, partner,
+  preview) once §4.2 work starts.
 
 ## 6. Suggested rollout phases
 
-1. **Phase 0 — Foundation**: extract `SidebarFilterComponent`, `ProductListComponent`,
-   `PaginationComponent`, `SortSelectComponent`, `BreadcrumbsComponent`; refactor `search.page.ts` to
-   use them (without breaking the existing spec).
-2. **Phase 1 (P0)**: complete Search (section 4.1) + Product Detail (section 4.2) — the two core
-   revenue flows.
-3. **Phase 2 (P1, no auth)**: E-Ticket (4.3) + Review List (4.5) — reuse the Phase 0 components.
-4. **Phase 3 (auth)**: build `auth.fixture.ts` (clarify the test login mechanism first), then Review
-   Create/Edit (4.6), My Reviews (4.8), Favorite (4.10).
-5. **Phase 4 (remaining P2)**: Partner Search (4.4), Review Complete (4.7), Thank You (4.9).
+1. **Phase 0 — Foundation**: ✅ done — `SidebarFilterComponent`, `ProductListComponent`,
+   `PaginationComponent`, `SortSelectComponent` built and reused; `search.page.ts` composes them.
+   `BreadcrumbsComponent` skipped (see §3 status note).
+2. **Phase 1 (P0)**: ⚠️ half done — Search (§4.1) is complete. **Product Detail (§4.2) is still
+   entirely uncovered except for the C46 widget** — this is now the single biggest gap in the whole
+   plan and should be the next priority.
+3. **Phase 2 (P1, no auth)**: ✅ done — E-Ticket (§4.3) and Review List (§4.5, public parts) both
+   covered, reusing the Phase 0 components as planned.
+4. **Phase 3 (auth)**: ✅ mostly done — `auth.setup.ts` built (Playwright `setup` project +
+   `chromium:auth` dependency, storageState-based, not the originally-imagined `auth.fixture.ts` but
+   the same idea). Review Create/Edit (§4.6) and My Reviews (§4.8) both covered. **Favorite (§4.10)
+   still not started.**
+5. **Phase 4 (remaining P2)**: ⚠️ partially done — Partner Search (§4.4) covered. **Review Complete
+   (§4.7) and Thank You (§4.9) not started.**
 
 ## 7. Risks / dependencies to confirm with the team before coding
 
